@@ -12,10 +12,6 @@ import kotlin.math.max
 class KeyboardView: View {
     private var mKeyboard: Keyboard? = null
 
-    private var mLabelTextSize: Int = 14.dp2px
-    private var mKeyTextSize: Int = 18.dp2px
-    private var mKeyTextColor: Int = Color.BLACK
-
     private var mKeys = listOf<Key>()
 
     private var mPaint = Paint()
@@ -104,7 +100,7 @@ class KeyboardView: View {
         val keys = mKeys
         val invalidKey = mInvalidatedKey
 
-        paint.color = mKeyTextColor
+        paint.color = Color.BLACK
         var drawSingleKey = false
         if (invalidKey != null && canvas.getClipBounds(clipRegion)) {
             if (invalidKey.x + kbdPaddingLeft - 1 <= clipRegion.left &&
@@ -121,25 +117,7 @@ class KeyboardView: View {
             }
 
             canvas.translate((key.x+kbdPaddingLeft).toFloat(), (key.y+kbdPaddingTop).toFloat())
-
-
-            val label = key.text
-            if (label != null) {
-                // For characters, use large font. For labels like "Done", use small font.
-                paint.typeface = Typeface.DEFAULT
-                paint.textSize = mKeyTextSize.toFloat()
-                canvas.drawText(label.toString(),
-                    ((key.width-padding.left-padding.right)/2 + padding.left).toFloat(),
-                    ((key.height-padding.top-padding.bottom)/2 + (paint.textSize - paint.descent()) + padding.top),
-                    paint)
-            } else if (key.icon != null) {
-                val drawableX = (key.width-padding.left-padding.right-key.icon.intrinsicWidth)/2+padding.left
-                val drawableY = (key.height-padding.top-padding.bottom-key.icon.intrinsicHeight)/2+paddingTop
-                canvas.translate(drawableX.toFloat(), drawableY.toFloat())
-                key.icon.setBounds(0, 0, key.icon.intrinsicWidth, key.icon.intrinsicHeight)
-                key.icon.draw(canvas)
-                canvas.translate(-drawableX.toFloat(), -drawableY.toFloat())
-            }
+            key.paint(canvas, paint)
             canvas.translate((-key.x-kbdPaddingLeft).toFloat(), (-key.y-kbdPaddingTop).toFloat())
         }
 
@@ -163,7 +141,7 @@ class KeyboardView: View {
 
     fun setKeyboard(keyboard: Keyboard) {
         mKeyboard = keyboard
-        background = ColorDrawable(Color.WHITE)
+        background = ColorDrawable(context.getColor(R.color.bg))
         mKeys = keyboard.keys
         requestLayout()
         mKeyboardChanged = true

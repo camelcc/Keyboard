@@ -6,4 +6,6 @@
 
     <color name="keyColorNormal">#FFFFFFFF</color>
     <color name="keyColorPressed">#FFE0E0E0</color>
+
+    <color name="bg">#FFFDFEFF</color>
 </resources>

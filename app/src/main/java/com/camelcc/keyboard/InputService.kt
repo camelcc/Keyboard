@@ -21,7 +21,7 @@ class InputService : InputMethodService() {
         inputView.layoutParams = ViewGroup.LayoutParams(
             ViewGroup.LayoutParams.MATCH_PARENT,
             ViewGroup.LayoutParams.WRAP_CONTENT)
-        inputView.setKeyboard(QWERTYKeyboard(resources.displayMetrics.widthPixels))
+        inputView.setKeyboard(QWERTYKeyboard(this))
         return inputView
     }
 
