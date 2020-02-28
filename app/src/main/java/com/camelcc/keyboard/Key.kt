@@ -20,13 +20,34 @@ open class TextKey(val text: CharSequence): Key {
     override var height: Int = 0
     override var width: Int = 0
 
+    val radius = 4.dp2px
     var size = 26.dp2px
 
     override fun paint(canvas: Canvas, paint: Paint) {
+        canvas.translate(x.toFloat(), y.toFloat())
+
+        val style = paint.style
+        val color = paint.color
+
+        paint.style = Paint.Style.STROKE
+        paint.color = Color.BLACK
+        canvas.drawRoundRect(1.0f, 1.0f,
+            width.toFloat()-1.0f, height.toFloat()+1.0f,
+            radius.toFloat(), radius.toFloat(), paint)
+
+        paint.style = Paint.Style.FILL
+        paint.color = Color.WHITE
+        canvas.drawRoundRect(.0f, .0f,
+            width.toFloat(), height.toFloat(),
+            radius.toFloat(), radius.toFloat(), paint)
+
+        paint.color = color
+        paint.style = style
         paint.textSize = size.toFloat()
         canvas.drawText(text.toString(),
             width.toFloat()/2,
-            height/2+(size-paint.descent()), paint)
+            height/2-(paint.descent()+paint.ascent())/2, paint)
+        canvas.translate(-x.toFloat(), -y.toFloat())
     }
 }
 
@@ -36,13 +57,33 @@ open class IconKey(val icon: Drawable): Key {
     override var height: Int = 0
     override var width: Int = 0
 
+    private val radius = 4.dp2px
+
     override fun paint(canvas: Canvas, paint: Paint) {
+        canvas.translate(x.toFloat(), y.toFloat())
+
+        val style = paint.style
+        val color = paint.color
+
+        paint.style = Paint.Style.STROKE
+        paint.color = Color.BLACK
+        canvas.drawRoundRect(1.0f, 1.0f,
+            width.toFloat()-1.0f, height.toFloat()+1.0f,
+            radius.toFloat(), radius.toFloat(), paint)
+
+        paint.style = Paint.Style.FILL
+        paint.color = Color.WHITE
+        canvas.drawRoundRect(.0f, .0f, width.toFloat(), height.toFloat(), 4.dp2px.toFloat(), 4.dp2px.toFloat(), paint)
+
+        paint.color = color
+        paint.style = style
         val drawableX = (width-icon.intrinsicWidth)/2
         val drawableY = (height-icon.intrinsicHeight)/2
         canvas.translate(drawableX.toFloat(), drawableY.toFloat())
         icon.setBounds(0, 0, icon.intrinsicWidth, icon.intrinsicHeight)
         icon.draw(canvas)
         canvas.translate(-drawableX.toFloat(), -drawableY.toFloat())
+        canvas.translate(-x.toFloat(), -y.toFloat())
     }
 }
 
@@ -62,6 +103,16 @@ class EmojiKey(icon: Drawable, private val text: CharSequence): IconKey(icon) {
     var size = 26.dp2px
 
     override fun paint(canvas: Canvas, paint: Paint) {
+        canvas.translate(x.toFloat(), y.toFloat())
+
+        val style = paint.style
+        val color = paint.color
+        paint.style = Paint.Style.FILL
+        paint.color = Color.WHITE
+        canvas.drawRoundRect(.0f, .0f, width.toFloat(), height.toFloat(), 4.dp2px.toFloat(), 4.dp2px.toFloat(), paint)
+
+        paint.color = color
+        paint.style = style
         val drawableX = (width-icon.intrinsicWidth)/2
         val drawableY = (height/2-icon.intrinsicHeight)/2
         canvas.translate(drawableX.toFloat(), drawableY.toFloat())
@@ -73,6 +124,7 @@ class EmojiKey(icon: Drawable, private val text: CharSequence): IconKey(icon) {
         canvas.drawText(text.toString(),
             width.toFloat()/2,
             height/2+(size-paint.descent()), paint)
+        canvas.translate(-x.toFloat(), -y.toFloat())
     }
 }
 

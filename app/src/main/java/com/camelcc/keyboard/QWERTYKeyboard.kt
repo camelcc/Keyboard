@@ -43,7 +43,10 @@ class QWERTYKeyboard: Keyboard {
     private val enter = initKey(text = "-")
     override val keys: List<Key>
 
+    private val theme: KeyboardTheme
+
     constructor(context: Context) {
+        theme = KeyboardTheme(context)
         width = context.resources.displayMetrics.widthPixels
         emoji = EmojiKey(context.getDrawable(R.drawable.ic_emoji_12dp)!!, ",")
         lang = IconKey(context.getDrawable(R.drawable.ic_lang_24dp)!!)
@@ -72,92 +75,94 @@ class QWERTYKeyboard: Keyboard {
     }
 
     private fun layoutKeys() {
-        val normalWidth = width/10
-        val controlWidth = (width*0.15).toInt()
-        val spaceWidth = (width*0.4).toInt()
-        val normalHeight = 60.dp2px
-        var x = 0
-        var y = 0
+        val normalWidth = (width-theme.paddingLeft-theme.paddingRight-11*theme.keyPadding)/10
+        val controlWidth = (width-theme.paddingLeft-theme.paddingRight-10*theme.keyPadding-7*normalWidth)/2
+        val spaceWidth = 4*normalWidth+3*theme.keyPadding
+        val normalHeight = theme.keyHeight
+        var x = theme.paddingLeft+theme.keyPadding
+        var y = theme.paddingTop+theme.keyPadding
 
         layoutKey(x, y, normalWidth, normalHeight, q)
-        x += q.width
+        x += q.width + theme.keyPadding
         layoutKey(x, y, normalWidth, normalHeight, w)
-        x += w.width
+        x += w.width + theme.keyPadding
         layoutKey(x, y, normalWidth, normalHeight, e)
-        x += e.width
+        x += e.width + theme.keyPadding
         layoutKey(x, y, normalWidth, normalHeight, r)
-        x += r.width
+        x += r.width + theme.keyPadding
         layoutKey(x, y, normalWidth, normalHeight, t)
-        x += t.width
+        x += t.width + theme.keyPadding
         layoutKey(x, y, normalWidth, normalHeight, this.y)
-        x += this.y.width
+        x += this.y.width + theme.keyPadding
         layoutKey(x, y, normalWidth, normalHeight, u)
-        x += u.width
+        x += u.width + theme.keyPadding
         layoutKey(x, y, normalWidth, normalHeight, i)
-        x += i.width
+        x += i.width + theme.keyPadding
         layoutKey(x, y, normalWidth, normalHeight, o)
-        x += o.width
+        x += o.width + theme.keyPadding
         layoutKey(x, y, normalWidth, normalHeight, p)
-        x += p.width
-        y += normalHeight
+        x += p.width + theme.keyPadding
+        y += normalHeight + theme.keyPadding
 
-        x = (width*0.05).toInt()
+        y += theme.keyPadding
+        x = (width-9*normalWidth-8*theme.keyPadding)/2
         layoutKey(x, y, normalWidth, normalHeight, a)
-        x += a.width
+        x += a.width + theme.keyPadding
         layoutKey(x, y, normalWidth, normalHeight, s)
-        x += s.width
+        x += s.width + theme.keyPadding
         layoutKey(x, y, normalWidth, normalHeight, d)
-        x += d.width
+        x += d.width + theme.keyPadding
         layoutKey(x, y, normalWidth, normalHeight, f)
-        x += f.width
+        x += f.width + theme.keyPadding
         layoutKey(x, y, normalWidth, normalHeight, g)
-        x += g.width
+        x += g.width + theme.keyPadding
         layoutKey(x, y, normalWidth, normalHeight, h)
-        x += h.width
+        x += h.width + theme.keyPadding
         layoutKey(x, y, normalWidth, normalHeight, j)
-        x += j.width
+        x += j.width + theme.keyPadding
         layoutKey(x, y, normalWidth, normalHeight, k)
-        x += k.width
+        x += k.width + theme.keyPadding
         layoutKey(x, y, normalWidth, normalHeight, l)
-        x += l.width
-        x = 0
-        y += normalHeight
+        x += l.width + theme.keyPadding
+        y += normalHeight + theme.keyPadding
 
-
+        x = theme.keyPadding
+        y += theme.keyPadding
         layoutKey(x, y, controlWidth, normalHeight,shift)
-        x += shift.width
+        x += shift.width + theme.keyPadding
         layoutKey(x, y, normalWidth, normalHeight, z)
-        x += z.width
+        x += z.width + theme.keyPadding
         layoutKey(x, y, normalWidth, normalHeight, this.x)
-        x += this.x.width
+        x += this.x.width + theme.keyPadding
         layoutKey(x, y, normalWidth, normalHeight, c)
-        x += c.width
+        x += c.width + theme.keyPadding
         layoutKey(x, y, normalWidth, normalHeight, v)
-        x += v.width
+        x += v.width + theme.keyPadding
         layoutKey(x, y, normalWidth, normalHeight, b)
-        x += b.width
+        x += b.width + theme.keyPadding
         layoutKey(x, y, normalWidth, normalHeight, n)
-        x += n.width
+        x += n.width + theme.keyPadding
         layoutKey(x, y, normalWidth, normalHeight, m)
-        x += m.width
-        layoutKey(x, y, normalWidth, normalHeight, delete)
-        x += delete.width
-        x = 0
-        y += normalHeight
+        x += m.width + theme.keyPadding
+        layoutKey(x, y, controlWidth, normalHeight, delete)
+        x += delete.width + theme.keyPadding
+        y += normalHeight + theme.keyPadding
 
+        x = theme.keyPadding
+        y += theme.keyPadding
         layoutKey(x, y, controlWidth, normalHeight, number)
-        x += number.width
+        x += number.width + theme.keyPadding
         layoutKey(x, y, normalWidth, normalHeight, emoji)
-        x += emoji.width
+        x += emoji.width + theme.keyPadding
         layoutKey(x, y, normalWidth, normalHeight, lang)
-        x += lang.width
+        x += lang.width + theme.keyPadding
         layoutKey(x, y, spaceWidth, normalHeight, space)
-        x += space.width
+        x += space.width + theme.keyPadding
         layoutKey(x, y, normalWidth, normalHeight, symbol)
-        x += symbol.width
-        layoutKey(x, y, normalWidth, normalHeight, enter)
-        x += enter.width
-        y += normalHeight
+        x += symbol.width + theme.keyPadding
+        layoutKey(x, y, controlWidth, normalHeight, enter)
+        x += enter.width + theme.keyPadding
+        y += normalHeight + theme.keyPadding + theme.paddingBottom
         height = y
     }
 }

@@ -3,7 +3,6 @@ package com.camelcc.keyboard
 import android.content.Context
 import android.graphics.*
 import android.graphics.drawable.ColorDrawable
-import android.graphics.drawable.Drawable
 import android.util.AttributeSet
 import android.util.Log
 import android.view.View
@@ -93,20 +92,16 @@ class KeyboardView: View {
 
         val paint = mPaint
         val clipRegion = Rect(0, 0, 0, 0)
-        //TODO: key padding
-        val padding = Rect(0, 0, 0, 0)
-        val kbdPaddingLeft = paddingLeft
-        val kbdPaddingTop = paddingTop
         val keys = mKeys
         val invalidKey = mInvalidatedKey
 
         paint.color = Color.BLACK
         var drawSingleKey = false
         if (invalidKey != null && canvas.getClipBounds(clipRegion)) {
-            if (invalidKey.x + kbdPaddingLeft - 1 <= clipRegion.left &&
-                    invalidKey.y + kbdPaddingTop - 1 <= clipRegion.top &&
-                    invalidKey.x + invalidKey.width + kbdPaddingLeft + 1 >= clipRegion.right &&
-                    invalidKey.y + invalidKey.height + kbdPaddingTop + 1 >= clipRegion.bottom) {
+            if (invalidKey.x - 1 <= clipRegion.left &&
+                    invalidKey.y - 1 <= clipRegion.top &&
+                    invalidKey.x + invalidKey.width + 1 >= clipRegion.right &&
+                    invalidKey.y + invalidKey.height + 1 >= clipRegion.bottom) {
                 drawSingleKey = true
             }
         }
@@ -115,10 +110,7 @@ class KeyboardView: View {
             if (drawSingleKey && key != invalidKey) {
                 continue
             }
-
-            canvas.translate((key.x+kbdPaddingLeft).toFloat(), (key.y+kbdPaddingTop).toFloat())
             key.paint(canvas, paint)
-            canvas.translate((-key.x-kbdPaddingLeft).toFloat(), (-key.y-kbdPaddingTop).toFloat())
         }
 
         mInvalidatedKey = null
@@ -141,7 +133,7 @@ class KeyboardView: View {
 
     fun setKeyboard(keyboard: Keyboard) {
         mKeyboard = keyboard
-        background = ColorDrawable(context.getColor(R.color.bg))
+        background = ColorDrawable(Color.LTGRAY)
         mKeys = keyboard.keys
         requestLayout()
         mKeyboardChanged = true
