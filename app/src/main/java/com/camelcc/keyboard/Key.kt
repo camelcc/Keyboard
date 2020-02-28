@@ -30,13 +30,15 @@ open class TextKey(val text: CharSequence): Key {
         val color = paint.color
 
         paint.style = Paint.Style.STROKE
-        paint.color = Color.BLACK
+        paint.color = 0xFFA9ABAD.toInt()
+        paint.strokeWidth = 2.0f
         canvas.drawRoundRect(1.0f, 1.0f,
             width.toFloat()-1.0f, height.toFloat()+1.0f,
             radius.toFloat(), radius.toFloat(), paint)
 
         paint.style = Paint.Style.FILL
         paint.color = Color.WHITE
+        paint.strokeWidth = .0f
         canvas.drawRoundRect(.0f, .0f,
             width.toFloat(), height.toFloat(),
             radius.toFloat(), radius.toFloat(), paint)
