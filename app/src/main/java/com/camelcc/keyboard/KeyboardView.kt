@@ -133,7 +133,7 @@ class KeyboardView: View {
 
     fun setKeyboard(keyboard: Keyboard) {
         mKeyboard = keyboard
-        background = ColorDrawable(Color.LTGRAY)
+        background = keyboard.theme.background
         mKeys = keyboard.keys
         requestLayout()
         mKeyboardChanged = true

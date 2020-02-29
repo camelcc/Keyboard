@@ -1,139 +1,93 @@
 package com.camelcc.keyboard
 
 import android.graphics.Canvas
-import android.graphics.Color
 import android.graphics.Paint
+import android.graphics.Typeface
 import android.graphics.drawable.Drawable
 
-interface Key {
-    var x: Int
-    var y: Int
-    var width: Int
-    var height: Int
+open class Key(val theme: KeyboardTheme) {
+    var x = .0f
+    var y = .0f
+    var width = .0f
+    var height = .0f
 
-    fun paint(canvas: Canvas, paint: Paint)
-}
+    var keyColor = theme.keyColor
 
-open class TextKey(val text: CharSequence): Key {
-    override var x: Int = 0
-    override var y: Int = 0
-    override var height: Int = 0
-    override var width: Int = 0
-
-    val radius = 4.dp2px
-    var size = 26.dp2px
-
-    override fun paint(canvas: Canvas, paint: Paint) {
-        canvas.translate(x.toFloat(), y.toFloat())
+    fun paint(canvas: Canvas, paint: Paint) {
+        canvas.translate(x, y)
 
         val style = paint.style
         val color = paint.color
-
         paint.style = Paint.Style.STROKE
-        paint.color = 0xFFA9ABAD.toInt()
-        paint.strokeWidth = 2.0f
+        paint.color = theme.keyBorderColor
+        paint.strokeWidth = theme.keyBorderWidth.toFloat()
         canvas.drawRoundRect(1.0f, 1.0f,
-            width.toFloat()-1.0f, height.toFloat()+1.0f,
-            radius.toFloat(), radius.toFloat(), paint)
-
+            width-1.0f, height+1.0f,
+            theme.keyBorderRadius.toFloat(), theme.keyBorderRadius.toFloat(), paint)
         paint.style = Paint.Style.FILL
-        paint.color = Color.WHITE
+        paint.color = keyColor
         paint.strokeWidth = .0f
         canvas.drawRoundRect(.0f, .0f,
-            width.toFloat(), height.toFloat(),
-            radius.toFloat(), radius.toFloat(), paint)
-
-        paint.color = color
+            width, height,
+            theme.keyBorderRadius.toFloat(), theme.keyBorderRadius.toFloat(), paint)
         paint.style = style
-        paint.textSize = size.toFloat()
-        canvas.drawText(text.toString(),
-            width.toFloat()/2,
+        paint.color = color
+
+        drawContent(canvas, paint)
+
+        canvas.translate(-x, -y)
+    }
+
+    open fun drawContent(canvas: Canvas, paint: Paint) {}
+}
+
+class TextKey(theme: KeyboardTheme, private val text: String): Key(theme) {
+    var textSize = theme.keyTextSize.toFloat()
+    var bold = false
+
+    override fun drawContent(canvas: Canvas, paint: Paint) {
+        paint.textSize = textSize
+        if (bold) {
+            paint.typeface = Typeface.DEFAULT_BOLD
+        }
+        canvas.drawText(text,
+            width/2,
             height/2-(paint.descent()+paint.ascent())/2, paint)
-        canvas.translate(-x.toFloat(), -y.toFloat())
+        if (bold) {
+            paint.typeface = Typeface.DEFAULT
+        }
     }
 }
 
-open class IconKey(val icon: Drawable): Key {
-    override var x: Int = 0
-    override var y: Int = 0
-    override var height: Int = 0
-    override var width: Int = 0
-
-    private val radius = 4.dp2px
-
-    override fun paint(canvas: Canvas, paint: Paint) {
-        canvas.translate(x.toFloat(), y.toFloat())
-
-        val style = paint.style
-        val color = paint.color
-
-        paint.style = Paint.Style.STROKE
-        paint.color = Color.BLACK
-        canvas.drawRoundRect(1.0f, 1.0f,
-            width.toFloat()-1.0f, height.toFloat()+1.0f,
-            radius.toFloat(), radius.toFloat(), paint)
-
-        paint.style = Paint.Style.FILL
-        paint.color = Color.WHITE
-        canvas.drawRoundRect(.0f, .0f, width.toFloat(), height.toFloat(), 4.dp2px.toFloat(), 4.dp2px.toFloat(), paint)
-
-        paint.color = color
-        paint.style = style
+class IconKey(theme: KeyboardTheme, private val icon: Drawable): Key(theme) {
+    override fun drawContent(canvas: Canvas, paint: Paint) {
         val drawableX = (width-icon.intrinsicWidth)/2
         val drawableY = (height-icon.intrinsicHeight)/2
-        canvas.translate(drawableX.toFloat(), drawableY.toFloat())
+        canvas.translate(drawableX, drawableY)
         icon.setBounds(0, 0, icon.intrinsicWidth, icon.intrinsicHeight)
         icon.draw(canvas)
-        canvas.translate(-drawableX.toFloat(), -drawableY.toFloat())
-        canvas.translate(-x.toFloat(), -y.toFloat())
+        canvas.translate(-drawableX, -drawableY)
     }
 }
 
-class TextUpperKey(text: CharSequence, private val upperText: CharSequence): TextKey(text) {
-    override fun paint(canvas: Canvas, paint: Paint) {
-        super.paint(canvas, paint)
-    }
-}
+class TextUpperKey(theme: KeyboardTheme,
+                   private val text: String,
+                   private val upper: String): Key(theme) {
+    var textSize = theme.keyTextSize.toFloat()
+    var upperSize = theme.keyUpperTextSize.toFloat()
 
-class EnterKey(icon: Drawable): IconKey(icon) {
-    override fun paint(canvas: Canvas, paint: Paint) {
-        super.paint(canvas, paint)
-    }
-}
+    override fun drawContent(canvas: Canvas, paint: Paint) {
+        paint.textSize = textSize
+        canvas.drawText(text,
+            width/2,
+            height/2-(paint.descent()+paint.ascent())/2, paint)
 
-class EmojiKey(icon: Drawable, private val text: CharSequence): IconKey(icon) {
-    var size = 26.dp2px
 
-    override fun paint(canvas: Canvas, paint: Paint) {
-        canvas.translate(x.toFloat(), y.toFloat())
-
-        val style = paint.style
-        val color = paint.color
-        paint.style = Paint.Style.FILL
-        paint.color = Color.WHITE
-        canvas.drawRoundRect(.0f, .0f, width.toFloat(), height.toFloat(), 4.dp2px.toFloat(), 4.dp2px.toFloat(), paint)
-
-        paint.color = color
-        paint.style = style
-        val drawableX = (width-icon.intrinsicWidth)/2
-        val drawableY = (height/2-icon.intrinsicHeight)/2
-        canvas.translate(drawableX.toFloat(), drawableY.toFloat())
-        icon.setBounds(0, 0, icon.intrinsicWidth, icon.intrinsicHeight)
-        icon.draw(canvas)
-        canvas.translate(-drawableX.toFloat(), -drawableY.toFloat())
-
-        paint.textSize = size.toFloat()
-        canvas.drawText(text.toString(),
-            width.toFloat()/2,
-            height/2+(size-paint.descent()), paint)
-        canvas.translate(-x.toFloat(), -y.toFloat())
-    }
-}
-
-class SpaceKey(text: CharSequence): TextKey(text) {
-    override fun paint(canvas: Canvas, paint: Paint) {
-        val paintColor = paint.color
-        paint.color = Color.LTGRAY
-        paint.color = paintColor
+        paint.textSize = upperSize
+        paint.typeface = Typeface.DEFAULT_BOLD
+        canvas.drawText(upper,
+            width - paint.measureText(upper),
+            paint.textSize, paint)
+        paint.typeface = Typeface.DEFAULT
     }
 }
