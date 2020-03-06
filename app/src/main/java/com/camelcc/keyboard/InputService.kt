@@ -1,6 +1,7 @@
 package com.camelcc.keyboard
 
 import android.inputmethodservice.InputMethodService
+import android.os.Handler
 import android.util.Log
 import android.view.View
 import android.view.ViewGroup
@@ -21,7 +22,16 @@ class InputService : InputMethodService() {
         inputView.layoutParams = ViewGroup.LayoutParams(
             ViewGroup.LayoutParams.MATCH_PARENT,
             ViewGroup.LayoutParams.WRAP_CONTENT)
-        inputView.setKeyboard(QWERTYKeyboard(this))
+        inputView.setKeyboard(Keyboard(this))
+
+        val handler = Handler()
+        for (i in 1..100) {
+            handler.postDelayed({
+//                Log.i(tag, "change layout")
+                inputView.test()
+            }, 1000L*i)
+        }
+
         return inputView
     }
 

@@ -2,9 +2,9 @@ package com.camelcc.keyboard
 
 import android.content.Context
 import android.graphics.*
-import android.graphics.drawable.ColorDrawable
 import android.util.AttributeSet
 import android.util.Log
+import android.view.MotionEvent
 import android.view.View
 import kotlin.math.max
 
@@ -41,15 +41,15 @@ class KeyboardView: View {
     }
 
     override fun onMeasure(widthMeasureSpec: Int, heightMeasureSpec: Int) {
-        Log.i("[SK]", "[KeyboardView]: onMeasure")
         // Always full screen width
         val height = paddingTop+paddingBottom+(mKeyboard?.height ?: 0)
+        Log.i("[SK]", "[KeyboardView]: onMeasure, h = $height, keyboard = $mKeyboard")
         setMeasuredDimension(MeasureSpec.getSize(widthMeasureSpec), height)
     }
 
     override fun onSizeChanged(w: Int, h: Int, oldw: Int, oldh: Int) {
         super.onSizeChanged(w, h, oldw, oldh)
-        Log.i("[SK]", "[KeyboardView]: onMeasure, w = $w, h = $h")
+        Log.i("[SK]", "[KeyboardView]: onSizeChanged, w = $w, h = $h")
         mKeyboard?.resize(w, h)
         // Release the buffer if any and it will be reallocated on the next draw
         mBuffer = null
@@ -68,6 +68,50 @@ class KeyboardView: View {
         super.onDetachedFromWindow()
         Log.i("[SK]", "[KeyboardView]: onDetachedFromWindow, closing")
         closing()
+    }
+
+    var mOldPointerCount = 1
+    var mOldPointerX = .0f
+    var mOldPointerY = .0f
+
+    override fun onTouchEvent(ev: MotionEvent): Boolean {
+        // Convert multi-pointer up/down events to single up/down events to
+        // deal with the typical multi-pointer behavior of two thumb typing
+        val pointerCount = ev.pointerCount
+        val action = ev.action
+        var result = false
+        val now = ev.eventTime
+        if (pointerCount != mOldPointerCount) {
+            if (pointerCount == 1) {
+                val down = MotionEvent.obtain(now, now, MotionEvent.ACTION_DOWN, ev.x, ev.y, ev.metaState)
+                result = onModifiedTouchEvent(down, false)
+                down.recycle()
+                // If it's an up action, then deliver the up as well
+                if (action == MotionEvent.ACTION_UP) {
+                    result = onModifiedTouchEvent(ev, true)
+                }
+            } else {
+                // Send an up event for the last pointer
+                val up = MotionEvent.obtain(now, now, MotionEvent.ACTION_UP, mOldPointerX, mOldPointerY, ev.metaState)
+                result = onModifiedTouchEvent(up, true)
+                up.recycle()
+            }
+        } else {
+            if (pointerCount == 1) {
+                result = onModifiedTouchEvent(ev, false)
+                mOldPointerX = ev.x
+                mOldPointerY = ev.y
+            } else {
+                // Don't do anything when 2 pointers are down and moving
+                result = true
+            }
+        }
+        mOldPointerCount = pointerCount
+        return result
+    }
+
+    private fun onModifiedTouchEvent(ev: MotionEvent, possiblePoly: Boolean): Boolean {
+        return true
     }
 
     private fun onBufferDraw() {
@@ -133,9 +177,18 @@ class KeyboardView: View {
 
     fun setKeyboard(keyboard: Keyboard) {
         mKeyboard = keyboard
-        background = keyboard.theme.background
+        background = Keyboard.theme.background
         mKeys = keyboard.keys
         requestLayout()
         mKeyboardChanged = true
+    }
+
+    // TODO: testing purpose
+    fun test() {
+        mKeyboard?.let {
+            it.test()
+            mKeys = it.keys
+            invalidateAllKeys()
+        }
     }
 }

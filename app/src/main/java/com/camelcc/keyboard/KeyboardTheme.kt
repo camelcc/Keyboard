@@ -1,10 +1,9 @@
 package com.camelcc.keyboard
 
-import android.content.Context
 import android.graphics.Color
 import android.graphics.drawable.ColorDrawable
 
-class KeyboardTheme(context: Context) {
+class KeyboardTheme {
     var background = ColorDrawable(0xFFE8EAED.toInt())
     var paddingLeft: Int = 0.dp2px
     var paddingRight: Int = 0.dp2px
@@ -12,7 +11,9 @@ class KeyboardTheme(context: Context) {
     var paddingBottom: Int = 0.dp2px
 
     var keyPadding: Int = 6.dp2px
+    var keyPaddingHorizontal: Int = 4.dp2px
     var keyHeight: Int = 48.dp2px
+    var keyHeightHorizontal = 38.dp2px
     var keyGap: Int = 5.dp2px
     var keyColor = Color.WHITE
     var keyBorderColor = 0xFFA9ABAD.toInt()
