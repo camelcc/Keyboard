@@ -1,17 +1,34 @@
 package com.camelcc.keyboard
 
 import android.graphics.Canvas
+import android.graphics.Color
 import android.graphics.Paint
 import android.graphics.Typeface
 import android.graphics.drawable.Drawable
+import android.util.Log
 
 open class Key {
+    companion object {
+        const val EDGE_LEFT = 0x1
+        const val EDGE_RIGHT = 0x2
+        const val EDGE_TOP = 0x4
+        const val EDGE_BOTTOM = 0x8
+    }
+
     var x = .0f
     var y = .0f
     var width = .0f
     var height = .0f
 
+    var edges = 0
+
     var keyColor = Keyboard.theme.keyColor
+    var keyPressedColor = keyColor
+
+    var repeatable = false
+    var pressed = false
+    var sticky = false
+    var on = false
 
     fun paint(canvas: Canvas, paint: Paint) {
         canvas.translate(x, y)
@@ -25,7 +42,8 @@ open class Key {
             width-1.0f, height+1.0f,
             Keyboard.theme.keyBorderRadius.toFloat(), Keyboard.theme.keyBorderRadius.toFloat(), paint)
         paint.style = Paint.Style.FILL
-        paint.color = keyColor
+        paint.color = if (pressed) Color.RED else keyColor
+//        paint.color = if (pressed) keyPressedColor else keyColor
         paint.strokeWidth = .0f
         canvas.drawRoundRect(.0f, .0f,
             width, height,
@@ -38,7 +56,46 @@ open class Key {
         canvas.translate(-x, -y)
     }
 
+    // Returns the square of the distance between the center of the key and the given point
+    open fun squareDistanceFrom(x: Int, y: Int): Int {
+        val dx = this.x + width/2 - x
+        val dy = this.y + height/2 - y
+        return (dx*dx + dy*dy).toInt()
+    }
+
+    // Detects if a point fall inside this key
+    open fun isInside(x: Int, y: Int): Boolean {
+        val left = (edges and EDGE_LEFT) > 0
+        val right = (edges and EDGE_RIGHT) > 0
+        val top = (edges and EDGE_TOP) > 0
+        val bottom = (edges and EDGE_BOTTOM) > 0
+        if ((x >= this.x || (left && x <= this.x + this.width))
+            && (x < this.x + this.width || (right && x >= this.x))
+            && (y >= this.y || (top && y <= this.y + this.height))
+            && (y < this.y + this.height || (bottom && y >= this.y))) {
+            return true
+        }
+        return false
+    }
+
     open fun drawContent(canvas: Canvas, paint: Paint) {}
+
+    // Informs the key that it has been pressed, in case it needs to change its appearance or state.
+    open fun onPressed() {
+        pressed = !pressed
+        if (sticky && on) {
+            on = !on
+        }
+    }
+    // Changes the pressed state of the key
+    open fun onReleased(inside: Boolean) {
+        pressed = !pressed
+    }
+    open fun onDoubleTap() {
+        if (sticky && !on) {
+            on = true
+        }
+    }
 }
 
 open class TextKey: Key {
@@ -80,9 +137,19 @@ open class TextKey: Key {
             paint.typeface = Typeface.DEFAULT
         }
     }
+
+    override fun onPressed() {
+        Log.i("[SK]", "[Key] onPressed: $text")
+        super.onPressed()
+    }
+
+    override fun onReleased(inside: Boolean) {
+        Log.i("[SK]", "[Key] onReleased: $text")
+        super.onReleased(inside)
+    }
 }
 
-class IconKey(private val icon: Drawable): Key() {
+open class IconKey(private val icon: Drawable): Key() {
     override fun drawContent(canvas: Canvas, paint: Paint) {
         val drawableX = (width-icon.intrinsicWidth)/2
         val drawableY = (height-icon.intrinsicHeight)/2

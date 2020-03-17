@@ -25,5 +25,7 @@ class KeyboardTheme {
     val keyUpperTextSize = 12.dp2px
 
     val keyControlBackground = 0xFFCCCED5.toInt()
+    val keyControlPressedBackground = 0xFFBDC1C6.toInt()
     val keyEnterBackground = 0xFF1A73E8.toInt()
+    val keyEnterPressedBackground = 0xFF185ABC.toInt()
 }
