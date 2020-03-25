@@ -8,31 +8,53 @@ import kotlin.math.min
 class Keyboard {
     companion object {
         var theme = KeyboardTheme()
+        const val NORMAL = 1
+        const val UPPER = 2
+        const val STICKY_UPPER = 3
+        const val PUNCTUATION = 4
+        const val SYMBOL = 5
     }
 
     var width = 0
     var height = 0
 
+    var mode = NORMAL // 0 - normal, 1 - upper, 2 - punctuation
+
     var keys = listOf<Key>()
     private var layout: QWERTYLayout
 
     private val context: Context
+    private val keyboardView: KeyboardView
 
-    constructor(context: Context) {
+    constructor(context: Context, kb: KeyboardView) {
         this.context = context
+        this.keyboardView = kb
+
         val dm = context.resources.displayMetrics
         val dw = min(dm.widthPixels, dm.heightPixels)
         val dh = max(dm.widthPixels, dm.heightPixels)
         layout = QWERTYLayout()
         layout.displayWidth = dw
         layout.displayHeight = dh
-        buildQWERTY()
-//        buildPunctuation()
-        layout.layout(dm.widthPixels, 0)
-        height = layout.height
+        width = dm.widthPixels
+        height = 0
+        buildLayout()
     }
 
-    private fun buildQWERTY(upperCase: Boolean = false) {
+    private fun buildLayout() {
+        when (mode) {
+            NORMAL -> buildQWERTY()
+            UPPER -> buildQWERTY(true)
+            STICKY_UPPER -> buildQWERTY(upperCase = true, stickShift = true)
+            PUNCTUATION -> buildPunctuation()
+            SYMBOL -> buildPunctuation()
+        }
+        layout.layout(width, height)
+        height = layout.height
+        keyboardView.invalidateAllKeys()
+    }
+
+    private fun buildQWERTY(upperCase: Boolean = false, stickShift: Boolean = false) {
         val q = TextKey(if (upperCase) "Q" else "q", "1")
         val w = TextKey(if (upperCase) "W" else "w", "2")
         val e = TextKey(if (upperCase) "E" else "e", "3")
@@ -52,7 +74,7 @@ class Keyboard {
         val j = TextKey(if (upperCase) "J" else "j")
         val k = TextKey(if (upperCase) "K" else "k")
         val l = TextKey(if (upperCase) "L" else "l")
-        val shift = IconKey(context.getDrawable(R.drawable.ic_emoji_12dp)!!)
+        val shift = ShiftKey(context.getDrawable(if (!upperCase) R.drawable.ic_up_24dp else {if (stickShift) R.drawable.ic_upsticky_24dp else R.drawable.ic_upper_24dp })!!)
         shift.keyColor = theme.keyControlBackground
         shift.keyPressedColor = theme.keyControlPressedBackground
         val z = TextKey(if (upperCase) "Z" else "z")
@@ -62,10 +84,10 @@ class Keyboard {
         val b = TextKey(if (upperCase) "B" else "b")
         val n = TextKey(if (upperCase) "N" else "n")
         val m = TextKey(if (upperCase) "M" else "m")
-        val delete = IconKey(context.getDrawable(R.drawable.ic_emoji_12dp)!!)
+        val delete = IconKey(context.getDrawable(R.drawable.ic_delete_24dp)!!)
         delete.keyColor = theme.keyControlBackground
         delete.keyPressedColor = theme.keyControlPressedBackground
-        val number = TextKey("?123")
+        val number = SymbolKey("?123")
         number.keyColor = theme.keyControlBackground
         number.textSize = 18.dp2px.toFloat()
         number.bold = true
@@ -133,11 +155,11 @@ class Keyboard {
         val semicolon = TextKey(";")
         val exclamation = TextKey("!")
         val question = TextKey("?")
-        val delete = IconKey(context.getDrawable(R.drawable.ic_emoji_12dp)!!)
+        val delete = IconKey(context.getDrawable(R.drawable.ic_delete_24dp)!!)
         delete.keyColor = theme.keyControlBackground
         delete.keyPressedColor = theme.keyControlPressedBackground
 
-        val char = TextKey("ABC")
+        val char = Charkey("ABC")
         char.keyColor = theme.keyControlBackground
         char.keyPressedColor = theme.keyControlPressedBackground
         char.textSize = 18.dp2px.toFloat()
@@ -171,20 +193,6 @@ class Keyboard {
         )
     }
 
-    var mode = 0 // 0 - normal, 1 - upper, 2 - punctuation
-    fun test() {
-//        mode = 2
-//        mode = (mode+1)%3
-//        if (mode == 0) {
-//            buildQWERTY()
-//        } else if (mode == 1) {
-//            buildQWERTY(true)
-//        } else if (mode == 2) {
-//            buildPunctuation()
-//        }
-//        layout.layout(width, height)
-    }
-
     fun resize(w: Int, h: Int) {
         Log.i("[SK]", "[Keyboard] resize w: $w, h: $h")
         layout.layout(w, h)
@@ -207,6 +215,55 @@ class Keyboard {
             }
         }
         return closestKey
+    }
+
+    fun onClick(key: Key) {
+        key.onClicked()
+
+        when (key) {
+            is ShiftKey -> {
+                if (mode == NORMAL) {
+                    mode = UPPER
+                } else if (mode == UPPER || mode == STICKY_UPPER) {
+                    mode = NORMAL
+                }
+            }
+            is SymbolKey -> {
+                if (mode == NORMAL || mode == UPPER) {
+                    mode = PUNCTUATION
+                }
+            }
+            is Charkey -> {
+                if (mode == PUNCTUATION || mode == SYMBOL) {
+                    mode = NORMAL
+                }
+            }
+            else -> {
+                if (mode == UPPER) {
+                    mode = NORMAL
+                } else {
+                    return
+                }
+            }
+        }
+        buildLayout()
+    }
+
+    fun onDoubleClick(key: Key): Boolean {
+        return when (key) {
+            is ShiftKey -> {
+                if (mode == UPPER) {
+                    mode = STICKY_UPPER
+                    buildLayout()
+                } else {
+                    key.onClicked()
+                }
+                true
+            }
+            else -> {
+                false
+            }
+        }
     }
 }
 

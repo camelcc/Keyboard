@@ -22,16 +22,7 @@ class InputService : InputMethodService() {
         inputView.layoutParams = ViewGroup.LayoutParams(
             ViewGroup.LayoutParams.MATCH_PARENT,
             ViewGroup.LayoutParams.WRAP_CONTENT)
-        inputView.setKeyboard(Keyboard(this))
-
-        val handler = Handler()
-        for (i in 1..100) {
-            handler.postDelayed({
-//                Log.i(tag, "change layout")
-                inputView.test()
-            }, 1000L*i)
-        }
-
+        inputView.setKeyboard(Keyboard(this, inputView))
         return inputView
     }
 

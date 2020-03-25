@@ -26,9 +26,7 @@ open class Key {
     var keyPressedColor = keyColor
 
     var repeatable = false
-    var pressed = false
-    var sticky = false
-    var on = false
+    private var pressed = false
 
     fun paint(canvas: Canvas, paint: Paint) {
         canvas.translate(x, y)
@@ -83,19 +81,15 @@ open class Key {
     // Informs the key that it has been pressed, in case it needs to change its appearance or state.
     open fun onPressed() {
         pressed = !pressed
-        if (sticky && on) {
-            on = !on
-        }
     }
+
     // Changes the pressed state of the key
     open fun onReleased(inside: Boolean) {
         pressed = !pressed
     }
-    open fun onDoubleTap() {
-        if (sticky && !on) {
-            on = true
-        }
-    }
+
+    open fun onClicked() {}
+    open fun onDoubleClicked(): Boolean { return false }
 }
 
 open class TextKey: Key {
@@ -159,3 +153,7 @@ open class IconKey(private val icon: Drawable): Key() {
         canvas.translate(-drawableX, -drawableY)
     }
 }
+
+open class SymbolKey(text: String): TextKey(text)
+open class Charkey(text: String): TextKey(text)
+open class ShiftKey(icon: Drawable): IconKey(icon)

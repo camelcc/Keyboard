@@ -17,7 +17,7 @@ class KeyboardView: View {
     private var mKeyboard: Keyboard? = null
     private var mCurrentKeyIndex: Key? = null
 
-    private var mKeys = listOf<Key>()
+//    private var mKeys = listOf<Key>()
 
     // 一个touch序列中(down)，起始的位置
     private var mStartX = 0
@@ -67,6 +67,21 @@ class KeyboardView: View {
             ): Boolean {
                 return super.onFling(e1, e2, velocityX, velocityY)
             }
+
+            override fun onDoubleTapEvent(ev: MotionEvent): Boolean {
+                if (ev.action != MotionEvent.ACTION_UP) {
+                    return false
+                }
+
+                val touchX = (ev.x - paddingLeft).toInt()
+                val touchY = (ev.y - paddingTop).toInt()
+                val key = mKeyboard?.getKey(touchX, touchY) ?: return false
+                val res = mKeyboard?.onDoubleClick(key) ?: return false
+                if (res) {
+                    showPreview(null)
+                }
+                return res
+            }
         })
         mGestureDetector.setIsLongpressEnabled(false)
     }
@@ -115,7 +130,7 @@ class KeyboardView: View {
         val action = ev.action
         var result = false
         val now = ev.eventTime
-        Log.i("[SK]", "[KeyboardView] onTouchEvent: ${ev.action}, oc: $mOldPointerCount, c: $pointerCount")
+        Log.i("[SK]", "[KeyboardView] onTouchEvent: ${ev.action.action}, oc: $mOldPointerCount, c: $pointerCount")
         if (pointerCount != mOldPointerCount) {
             if (pointerCount == 1) {
                 val down = MotionEvent.obtain(now, now, MotionEvent.ACTION_DOWN, ev.x, ev.y, ev.metaState)
@@ -153,7 +168,7 @@ class KeyboardView: View {
         val key = mKeyboard?.getKey(touchX, touchY) ?: return true // consume
         mPossiblePoly = possiblePoly
 
-        Log.i("[SK]", "[KeyboardView] onModifiedTouchEvent: $action")
+        Log.i("[SK]", "[KeyboardView] onModifiedTouchEvent: ${action.action}")
 
         // Track the last few movements to look for spurious swipes
         if (action == MotionEvent.ACTION_DOWN) {
@@ -183,7 +198,6 @@ class KeyboardView: View {
                 mLastKey = null
                 mCurrentKey = key
 //                mDownKey = keyIndex
-                // TODO: onPress key
                 mCurrentKey?.let {
                     if (it.repeatable) {
                         // TODO: repeat key
@@ -221,9 +235,11 @@ class KeyboardView: View {
                 }
                 showPreview(null)
                 // If we're not on a repeating key (which sends on a DOWN event)
-//                if (mRepeatKeyIndex == NOT_A_KEY && !mAbortKey) {
-//                    detectAndSendKey(mCurrentKey, touchX, touchY, evTime)
-//                }
+                if (!mAbortKey) {
+                    mCurrentKey?.let {
+                        mKeyboard?.onClick(it)
+                    }
+                }
                 invalidateKey(key)
                 mRepeatKeyIndex = null
             }
@@ -257,12 +273,6 @@ class KeyboardView: View {
         // If key changed and preview is on
     }
 
-    private fun detectAndSendKey(index: Int, x: Int, y: Int, evTime: Long) {
-        if (index != NOT_A_KEY && index < mKeys.size) {
-
-        }
-    }
-
     private fun onBufferDraw() {
         if (mBuffer == null || mKeyboardChanged) {
             if (mBuffer == null || (mKeyboardChanged &&
@@ -285,7 +295,7 @@ class KeyboardView: View {
 
         val paint = mPaint
         val clipRegion = Rect(0, 0, 0, 0)
-        val keys = mKeys
+        val keys = mKeyboard?.keys ?: listOf()
         val invalidKey = mInvalidatedKey
 
         Log.i("[SK]", "[KeyboardView] onBufferDraw")
@@ -320,7 +330,7 @@ class KeyboardView: View {
         mCanvas = null
     }
 
-    private fun invalidateAllKeys() {
+    fun invalidateAllKeys() {
         mDirtyRect.union(0, 0, width, height)
         mDrawPending = true
         invalidate()
@@ -342,7 +352,6 @@ class KeyboardView: View {
     fun setKeyboard(keyboard: Keyboard) {
         mKeyboard = keyboard
         background = Keyboard.theme.background
-        mKeys = keyboard.keys
         requestLayout()
         // Hint to reallocate the buffer if the size changed
         mKeyboardChanged = true
@@ -350,14 +359,5 @@ class KeyboardView: View {
         // Switching to a different keyboard should abort any pending keys so that the key up
         // doesn't get delivered to the old or new keyboard
         mAbortKey = true
-    }
-
-    // TODO: testing purpose
-    fun test() {
-        mKeyboard?.let {
-            it.test()
-//            mKeys = it.keys
-//            invalidateAllKeys()
-        }
     }
 }
