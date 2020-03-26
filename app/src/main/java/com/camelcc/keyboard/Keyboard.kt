@@ -47,7 +47,7 @@ class Keyboard {
             UPPER -> buildQWERTY(true)
             STICKY_UPPER -> buildQWERTY(upperCase = true, stickShift = true)
             PUNCTUATION -> buildPunctuation()
-            SYMBOL -> buildPunctuation()
+            SYMBOL -> buildSymbol()
         }
         layout.layout(width, height)
         height = layout.height
@@ -84,10 +84,11 @@ class Keyboard {
         val b = TextKey(if (upperCase) "B" else "b")
         val n = TextKey(if (upperCase) "N" else "n")
         val m = TextKey(if (upperCase) "M" else "m")
-        val delete = IconKey(context.getDrawable(R.drawable.ic_delete_24dp)!!)
+        val delete = DeleteKey(context.getDrawable(R.drawable.ic_delete_24dp)!!)
+        delete.repeatable = true
         delete.keyColor = theme.keyControlBackground
         delete.keyPressedColor = theme.keyControlPressedBackground
-        val number = SymbolKey("?123")
+        val number = NumberKey("?123")
         number.keyColor = theme.keyControlBackground
         number.textSize = 18.dp2px.toFloat()
         number.bold = true
@@ -143,7 +144,7 @@ class Keyboard {
         val rightParenthesis = TextKey(")")
         val slash = TextKey("/")
 
-        val symbol = TextKey("=\\<")
+        val symbol = SymbolKey("=\\<")
         symbol.keyColor = theme.keyControlBackground
         symbol.keyPressedColor = theme.keyControlPressedBackground
         symbol.textSize = 18.dp2px.toFloat()
@@ -155,11 +156,12 @@ class Keyboard {
         val semicolon = TextKey(";")
         val exclamation = TextKey("!")
         val question = TextKey("?")
-        val delete = IconKey(context.getDrawable(R.drawable.ic_delete_24dp)!!)
+        val delete = DeleteKey(context.getDrawable(R.drawable.ic_delete_24dp)!!)
+        delete.repeatable = true
         delete.keyColor = theme.keyControlBackground
         delete.keyPressedColor = theme.keyControlPressedBackground
 
-        val char = Charkey("ABC")
+        val char = QWERTYKey("ABC")
         char.keyColor = theme.keyControlBackground
         char.keyPressedColor = theme.keyControlPressedBackground
         char.textSize = 18.dp2px.toFloat()
@@ -193,6 +195,80 @@ class Keyboard {
         )
     }
 
+    private fun buildSymbol() {
+        val p1 = TextKey("~")
+        val p2 = TextKey("`")
+        val p3 = TextKey("|")
+        val p4 = TextKey("\u2022")
+        val p5 = TextKey("\u221A")
+        val p6 = TextKey("\u03C0")
+        val p7 = TextKey("\u00F7")
+        val p8 = TextKey("\u00D7")
+        val p9 = TextKey("\u00B6")
+        val p0 = TextKey("\u0394")
+
+        val at = TextKey("\u00A3")
+        val sharp = TextKey("\u00A2")
+        val dollar = TextKey("\u20AC")
+        val underscore = TextKey("\u00A5")
+        val and = TextKey("^")
+        val minus = TextKey("\u00B0")
+        val plus = TextKey("=")
+        val leftParenthesis = TextKey("{")
+        val rightParenthesis = TextKey("}")
+        val slash = TextKey("\\")
+
+        val punctuation = PunctuationKey("?123")
+        punctuation.keyColor = theme.keyControlBackground
+        punctuation.keyPressedColor = theme.keyControlPressedBackground
+        punctuation.textSize = 18.dp2px.toFloat()
+        punctuation.bold = true
+        val asterisk = TextKey("%")
+        val quote = TextKey("\u00A9")
+        val singleQuote = TextKey("\u00AE")
+        val colon = TextKey("\u2122")
+        val semicolon = TextKey("\u2713")
+        val exclamation = TextKey("[")
+        val question = TextKey("]")
+        val delete = DeleteKey(context.getDrawable(R.drawable.ic_delete_24dp)!!)
+        delete.repeatable = true
+        delete.keyColor = theme.keyControlBackground
+        delete.keyPressedColor = theme.keyControlPressedBackground
+
+        val char = QWERTYKey("ABC")
+        char.keyColor = theme.keyControlBackground
+        char.keyPressedColor = theme.keyControlPressedBackground
+        char.textSize = 18.dp2px.toFloat()
+        char.bold = true
+        val comma = TextKey("<")
+        comma.keyColor = theme.keyControlBackground
+        comma.textSize = theme.keySymbolTextSize.toFloat()
+        val lang = IconKey(context.getDrawable(R.drawable.ic_lang_24dp)!!)
+        val space = TextKey("English")
+        space.keyPressedColor = theme.keyControlPressedBackground
+        space.textSize = theme.keySpaceTextSize.toFloat()
+        val period = TextKey(">")
+        period.keyColor = theme.keyControlBackground
+        period.textSize = theme.keySymbolTextSize.toFloat()
+        val enter = IconKey(context.getDrawable(R.drawable.ic_check_24dp)!!)
+        enter.keyColor = theme.keyEnterBackground
+        enter.keyPressedColor = theme.keyEnterPressedBackground
+
+        layout.rows = arrayOf(
+            arrayOf<Key>(p1, p2, p3, p4, p5, p6, p7, p8, p9, p0),
+            arrayOf<Key>(at, sharp, dollar, underscore, and, minus, plus, leftParenthesis, rightParenthesis, slash),
+            arrayOf<Key>(punctuation, asterisk, quote, singleQuote, colon, semicolon, exclamation, question, delete),
+            arrayOf<Key>(char, comma, lang, space, period, enter)
+        )
+
+        keys = listOf(
+            p1, p2, p3, p4, p5, p6, p7, p8, p9, p0,
+            at, sharp, dollar, underscore, and, minus, plus, leftParenthesis, rightParenthesis, slash,
+            punctuation, asterisk, quote, singleQuote, colon, semicolon, exclamation, question, delete,
+            char, comma, lang, space, period, enter
+        )
+    }
+
     fun resize(w: Int, h: Int) {
         Log.i("[SK]", "[Keyboard] resize w: $w, h: $h")
         layout.layout(w, h)
@@ -220,33 +296,54 @@ class Keyboard {
     fun onClick(key: Key) {
         key.onClicked()
 
+        var updated = false
         when (key) {
             is ShiftKey -> {
                 if (mode == NORMAL) {
                     mode = UPPER
+                    updated = true
                 } else if (mode == UPPER || mode == STICKY_UPPER) {
                     mode = NORMAL
+                    updated = true
+                }
+            }
+            is NumberKey -> {
+                if (mode == NORMAL || mode == UPPER || mode == STICKY_UPPER) {
+                    mode = PUNCTUATION
+                    updated = true
+                }
+            }
+            is QWERTYKey -> {
+                if (mode == PUNCTUATION || mode == SYMBOL) {
+                    mode = NORMAL
+                    updated = true
                 }
             }
             is SymbolKey -> {
-                if (mode == NORMAL || mode == UPPER) {
-                    mode = PUNCTUATION
+                if (mode == PUNCTUATION) {
+                    mode = SYMBOL
+                    updated = true
                 }
             }
-            is Charkey -> {
-                if (mode == PUNCTUATION || mode == SYMBOL) {
-                    mode = NORMAL
+            is PunctuationKey -> {
+                if (mode == SYMBOL) {
+                    mode = PUNCTUATION
+                    updated = true
                 }
+            }
+            is DeleteKey -> {
+                Log.i("[SK]", "[Keyboard] delete")
             }
             else -> {
                 if (mode == UPPER) {
                     mode = NORMAL
-                } else {
-                    return
+                    updated = true
                 }
             }
         }
-        buildLayout()
+        if (updated) {
+            buildLayout()
+        }
     }
 
     fun onDoubleClick(key: Key): Boolean {

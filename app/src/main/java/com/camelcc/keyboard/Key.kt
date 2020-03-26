@@ -154,6 +154,9 @@ open class IconKey(private val icon: Drawable): Key() {
     }
 }
 
+open class DeleteKey(icon: Drawable): IconKey(icon)
+open class NumberKey(text: String): TextKey(text)
 open class SymbolKey(text: String): TextKey(text)
-open class Charkey(text: String): TextKey(text)
+open class PunctuationKey(text: String): TextKey(text)
+open class QWERTYKey(text: String): TextKey(text)
 open class ShiftKey(icon: Drawable): IconKey(icon)

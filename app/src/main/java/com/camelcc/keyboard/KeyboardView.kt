@@ -2,6 +2,8 @@ package com.camelcc.keyboard
 
 import android.content.Context
 import android.graphics.*
+import android.os.Handler
+import android.os.Message
 import android.util.AttributeSet
 import android.util.Log
 import android.view.GestureDetector
@@ -9,10 +11,14 @@ import android.view.MotionEvent
 import android.view.View
 import kotlin.math.max
 
+
 class KeyboardView: View {
     companion object {
         const val NOT_A_KEY = -1
         const val DEBOUNCE_TIME = 70
+        const val MSG_REPEAT = 3
+        const val REPEAT_INTERVAL = 50L // 20 keys per second
+        const val REPEAT_START_DELAY = 400L
     }
     private var mKeyboard: Keyboard? = null
     private var mCurrentKeyIndex: Key? = null
@@ -28,10 +34,10 @@ class KeyboardView: View {
     private var mLastKey: Key? = null
     private var mCurrentKey: Key? = null
 //    private var mDownKey = NOT_A_KEY
-    private val mGestureDetector: GestureDetector
+    private lateinit var mGestureDetector: GestureDetector
 
     // #
-    private var mRepeatKeyIndex: Key? = null
+    private var mRepeatKey: Key? = null
     private var mAbortKey = true
     private var mInvalidatedKey: Key? = null
     private var mPossiblePoly = false
@@ -49,6 +55,7 @@ class KeyboardView: View {
     // The dirty region in the keyboard bitmap
     private var mDirtyRect = Rect()
 
+    private lateinit var mHandler: Handler
 
     constructor(context: Context): this(context, null)
     constructor(context: Context, attrs: AttributeSet? = null): this(context, attrs, 0)
@@ -57,7 +64,10 @@ class KeyboardView: View {
         mPaint.textSize = .0f
         mPaint.textAlign = Paint.Align.CENTER
         mPaint.alpha = 255
+    }
 
+    override fun onAttachedToWindow() {
+        super.onAttachedToWindow()
         mGestureDetector = GestureDetector(context, object: GestureDetector.SimpleOnGestureListener() {
             override fun onFling(
                 e1: MotionEvent?,
@@ -77,17 +87,27 @@ class KeyboardView: View {
                 val touchY = (ev.y - paddingTop).toInt()
                 val key = mKeyboard?.getKey(touchX, touchY) ?: return false
                 val res = mKeyboard?.onDoubleClick(key) ?: return false
-                if (res) {
-                    showPreview(null)
-                }
+//                if (res) {
+//                    showPreview(null)
+//                }
                 return res
             }
         })
         mGestureDetector.setIsLongpressEnabled(false)
-    }
-
-    override fun onAttachedToWindow() {
-        super.onAttachedToWindow()
+        mHandler = object : Handler() {
+            override fun handleMessage(msg: Message) {
+                when (msg.what) {
+                    MSG_REPEAT -> {
+                        if (mRepeatKey != null && mCurrentKey == mRepeatKey) {
+                            mKeyboard?.onClick(mRepeatKey!!)
+                        }
+                        val repeat = Message.obtain(this, MSG_REPEAT)
+                        sendMessageDelayed(repeat, REPEAT_INTERVAL)
+                    }
+                    else -> {}
+                }
+            }
+        }
     }
 
     override fun onMeasure(widthMeasureSpec: Int, heightMeasureSpec: Int) {
@@ -182,7 +202,8 @@ class KeyboardView: View {
         }
 
         if (mGestureDetector.onTouchEvent(ev)) {
-            // TODO: remove repeat and long press timer
+            showPreview(null)
+            mHandler.removeMessages(MSG_REPEAT)
             return true
         }
 
@@ -198,11 +219,15 @@ class KeyboardView: View {
                 mLastKey = null
                 mCurrentKey = key
 //                mDownKey = keyIndex
-                mCurrentKey?.let {
-                    if (it.repeatable) {
-                        // TODO: repeat key
+                if (key.repeatable) {
+                    mRepeatKey = key
+                    val msg = mHandler.obtainMessage(MSG_REPEAT)
+                    mHandler.sendMessageDelayed(msg, REPEAT_START_DELAY)
+                    mKeyboard?.onClick(key)
+                    // Delivering the key could have caused an abort
+                    if (mAbortKey) {
+                        mRepeatKey = null
                     }
-                    // TODO: Long press
                 }
                 showPreview(key)
             }
@@ -226,7 +251,7 @@ class KeyboardView: View {
                 showPreview(mCurrentKey)
             }
             MotionEvent.ACTION_UP -> {
-                // TODO: remove messages
+                removeMessages()
                 if (key == mCurrentKey) {
 
                 } else {
@@ -235,16 +260,16 @@ class KeyboardView: View {
                 }
                 showPreview(null)
                 // If we're not on a repeating key (which sends on a DOWN event)
-                if (!mAbortKey) {
+                if (mRepeatKey == null && !mAbortKey) {
                     mCurrentKey?.let {
                         mKeyboard?.onClick(it)
                     }
                 }
                 invalidateKey(key)
-                mRepeatKeyIndex = null
+                mRepeatKey = null
             }
             MotionEvent.ACTION_CANCEL -> {
-                // TODO: remove messages, dismiss popup
+                removeMessages()
                 mAbortKey = true
                 showPreview(null)
                 invalidateKey(mCurrentKey)
@@ -325,7 +350,14 @@ class KeyboardView: View {
         mDirtyRect.setEmpty()
     }
 
+    private fun removeMessages() {
+        if (::mHandler.isInitialized) {
+            mHandler.removeMessages(MSG_REPEAT)
+        }
+    }
+
     private fun closing() {
+        removeMessages()
         mBuffer = null
         mCanvas = null
     }
@@ -350,6 +382,8 @@ class KeyboardView: View {
     }
 
     fun setKeyboard(keyboard: Keyboard) {
+        // Remove any pending messages
+        removeMessages()
         mKeyboard = keyboard
         background = Keyboard.theme.background
         requestLayout()
