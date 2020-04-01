@@ -339,23 +339,15 @@ class KeyboardView: View {
     }
 
     private fun showKey(key: Key) {
-        if (key !is TextKey) {
+        if (key !is PreviewTextKey) {
             mPreviewContainer.visibility = INVISIBLE
             return
         }
 
         mPreviewText.text = key.text
-//        mPreviewText.textSize = Keyboard.theme.keyTextSize.toFloat()
         mPreviewText.typeface = Typeface.DEFAULT
         val popupWidth = (key.width + Keyboard.theme.keyGap).toInt()
         val popupHeight = 115.dp2px
-//        var previewLP = mPreviewText.layoutParams
-//        if (previewLP != null) {
-//            previewLP = ViewGroup.LayoutParams(popupWidth, popupHeight)
-//        }
-//        previewLP.width = popupWidth
-//        previewLP.height = popupHeight
-//        mPreviewContainer.layoutParams = previewLP
 
         var popupX = key.x - Keyboard.theme.keyGap/2
         var popupY = key.y + key.height - popupHeight

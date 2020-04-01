@@ -104,8 +104,6 @@ open class TextKey: Key {
     var upperSize = Keyboard.theme.keyUpperTextSize.toFloat()
     var bold = false
 
-    var preview = false
-
     val text: String
     private var superScript: String? = null
 
@@ -154,6 +152,11 @@ open class IconKey(private val icon: Drawable): Key() {
         icon.draw(canvas)
         canvas.translate(-drawableX, -drawableY)
     }
+}
+
+open class PreviewTextKey: TextKey {
+    constructor(text: String): super(text)
+    constructor(text: String, superScript: String): super(text, superScript)
 }
 
 open class DeleteKey(icon: Drawable): IconKey(icon)
