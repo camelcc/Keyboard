@@ -28,4 +28,11 @@ class KeyboardTheme {
     val keyControlPressedBackground = 0xFFBDC1C6.toInt()
     val keyEnterBackground = 0xFF1A73E8.toInt()
     val keyEnterPressedBackground = 0xFF185ABC.toInt()
+
+    val popupBackground = 0xFFCCCED5.toInt()
+    val popupRadius = 8.dp2px
+    val popupTextSize = 26.dp2px
+    val popupElevation = 4.dp2px
+    val popupMarginBottom = 70.dp2px
+    val popupKeyHeight = 48.dp2px
 }

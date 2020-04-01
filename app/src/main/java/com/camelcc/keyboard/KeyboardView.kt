@@ -78,13 +78,16 @@ class KeyboardView: View {
 
         mPreviewPopup = PopupWindow(context)
         mPreviewPopup.setBackgroundDrawable(null)
+        mPreviewPopup.elevation = Keyboard.theme.popupElevation.toFloat()
         mPreviewPopup.isClippingEnabled = false
+        mPreviewPopup.isTouchable = false
 
         mPreviewContainer = layoutInflater.inflate(R.layout.keyboard_preview, null)
+        mPreviewContainer.background = context.getDrawable(R.drawable.roundcornor_rect)
+        mPreviewContainer.clipToOutline = true
         mPreviewText = mPreviewContainer.findViewById(R.id.preview_text)
-
+        mPreviewText.textSize = 28.0f
         mPreviewPopup.contentView = mPreviewContainer
-        mPreviewPopup.isTouchable = false
     }
 
     override fun onAttachedToWindow() {
@@ -347,7 +350,7 @@ class KeyboardView: View {
         mPreviewText.text = key.text
         mPreviewText.typeface = Typeface.DEFAULT
         val popupWidth = (key.width + Keyboard.theme.keyGap).toInt()
-        val popupHeight = 115.dp2px
+        val popupHeight = Keyboard.theme.popupMarginBottom + Keyboard.theme.popupKeyHeight
 
         var popupX = key.x - Keyboard.theme.keyGap/2
         var popupY = key.y + key.height - popupHeight

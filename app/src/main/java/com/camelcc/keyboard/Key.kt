@@ -41,8 +41,8 @@ open class Key {
             width-1.0f, height+1.0f,
             Keyboard.theme.keyBorderRadius.toFloat(), Keyboard.theme.keyBorderRadius.toFloat(), paint)
         paint.style = Paint.Style.FILL
-        paint.color = if (pressed) Color.RED else keyColor
-//        paint.color = if (pressed) keyPressedColor else keyColor
+//        paint.color = if (pressed) Color.RED else keyColor
+        paint.color = if (pressed) keyPressedColor else keyColor
         paint.strokeWidth = .0f
         canvas.drawRoundRect(.0f, .0f,
             width, height,
