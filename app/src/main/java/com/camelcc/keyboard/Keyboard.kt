@@ -294,6 +294,7 @@ class Keyboard {
     }
 
     fun onClick(key: Key) {
+        Log.i("[SK]", "[Keyboard] click: $key")
         key.onClicked()
 
         var updated = false

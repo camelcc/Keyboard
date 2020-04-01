@@ -1,14 +1,16 @@
 package com.camelcc.keyboard
 
+import android.R.attr
 import android.content.Context
 import android.graphics.*
+import android.graphics.drawable.ColorDrawable
 import android.os.Handler
 import android.os.Message
 import android.util.AttributeSet
 import android.util.Log
-import android.view.GestureDetector
-import android.view.MotionEvent
-import android.view.View
+import android.view.*
+import android.widget.PopupWindow
+import android.widget.TextView
 import kotlin.math.max
 
 
@@ -16,14 +18,21 @@ class KeyboardView: View {
     companion object {
         const val NOT_A_KEY = -1
         const val DEBOUNCE_TIME = 70
+        const val MSG_SHOW_PREVIEW = 1
+        const val MSG_REMOVE_PREVIEW = 2
         const val MSG_REPEAT = 3
         const val REPEAT_INTERVAL = 50L // 20 keys per second
         const val REPEAT_START_DELAY = 400L
+        const val DELAY_BEFORE_PREVIEW = 0L
+        const val DELAY_AFTER_PREVIEW = 70L
     }
     private var mKeyboard: Keyboard? = null
     private var mCurrentKeyIndex: Key? = null
 
-//    private var mKeys = listOf<Key>()
+    private val mShowPreview = true
+    private lateinit var mPreviewPopup:PopupWindow
+    private lateinit var mPreviewContainer: View
+    private lateinit var mPreviewText: TextView
 
     // 一个touch序列中(down)，起始的位置
     private var mStartX = 0
@@ -64,6 +73,18 @@ class KeyboardView: View {
         mPaint.textSize = .0f
         mPaint.textAlign = Paint.Align.CENTER
         mPaint.alpha = 255
+
+        val layoutInflater = context.getSystemService(Context.LAYOUT_INFLATER_SERVICE) as LayoutInflater
+
+        mPreviewPopup = PopupWindow(context)
+        mPreviewPopup.setBackgroundDrawable(null)
+        mPreviewPopup.isClippingEnabled = false
+
+        mPreviewContainer = layoutInflater.inflate(R.layout.keyboard_preview, null)
+        mPreviewText = mPreviewContainer.findViewById(R.id.preview_text)
+
+        mPreviewPopup.contentView = mPreviewContainer
+        mPreviewPopup.isTouchable = false
     }
 
     override fun onAttachedToWindow() {
@@ -86,17 +107,19 @@ class KeyboardView: View {
                 val touchX = (ev.x - paddingLeft).toInt()
                 val touchY = (ev.y - paddingTop).toInt()
                 val key = mKeyboard?.getKey(touchX, touchY) ?: return false
-                val res = mKeyboard?.onDoubleClick(key) ?: return false
-//                if (res) {
-//                    showPreview(null)
-//                }
-                return res
+                return mKeyboard?.onDoubleClick(key) ?: return false
             }
         })
         mGestureDetector.setIsLongpressEnabled(false)
         mHandler = object : Handler() {
             override fun handleMessage(msg: Message) {
                 when (msg.what) {
+                    MSG_SHOW_PREVIEW -> {
+                        showKey(msg.obj as Key)
+                    }
+                    MSG_REMOVE_PREVIEW -> {
+                        mPreviewContainer.visibility = GONE
+                    }
                     MSG_REPEAT -> {
                         if (mRepeatKey != null && mCurrentKey == mRepeatKey) {
                             mKeyboard?.onClick(mRepeatKey!!)
@@ -150,7 +173,7 @@ class KeyboardView: View {
         val action = ev.action
         var result = false
         val now = ev.eventTime
-        Log.i("[SK]", "[KeyboardView] onTouchEvent: ${ev.action.action}, oc: $mOldPointerCount, c: $pointerCount")
+//        Log.i("[SK]", "[KeyboardView] onTouchEvent: ${ev.action.action}, oc: $mOldPointerCount, c: $pointerCount")
         if (pointerCount != mOldPointerCount) {
             if (pointerCount == 1) {
                 val down = MotionEvent.obtain(now, now, MotionEvent.ACTION_DOWN, ev.x, ev.y, ev.metaState)
@@ -188,7 +211,7 @@ class KeyboardView: View {
         val key = mKeyboard?.getKey(touchX, touchY) ?: return true // consume
         mPossiblePoly = possiblePoly
 
-        Log.i("[SK]", "[KeyboardView] onModifiedTouchEvent: ${action.action}")
+//        Log.i("[SK]", "[KeyboardView] onModifiedTouchEvent: ${action.action}")
 
         // Track the last few movements to look for spurious swipes
         if (action == MotionEvent.ACTION_DOWN) {
@@ -296,6 +319,61 @@ class KeyboardView: View {
             }
         }
         // If key changed and preview is on
+        if (oldKey != mCurrentKeyIndex && mShowPreview) {
+            mHandler.removeMessages(MSG_SHOW_PREVIEW)
+            if (mPreviewPopup.isShowing) {
+                if (key == null) {
+                    mHandler.sendMessageDelayed(mHandler.obtainMessage(MSG_REMOVE_PREVIEW),
+                        DELAY_AFTER_PREVIEW)
+                }
+            }
+            key?.let {
+                if (mPreviewPopup.isShowing && mPreviewText.visibility == VISIBLE) {
+                    // Show right away, if it's already visible and finger is moving around
+                    showKey(it)
+                } else {
+                    mHandler.sendMessageDelayed(mHandler.obtainMessage(MSG_SHOW_PREVIEW, it), DELAY_BEFORE_PREVIEW)
+                }
+            }
+        }
+    }
+
+    private fun showKey(key: Key) {
+        if (key !is TextKey) {
+            mPreviewContainer.visibility = INVISIBLE
+            return
+        }
+
+        mPreviewText.text = key.text
+//        mPreviewText.textSize = Keyboard.theme.keyTextSize.toFloat()
+        mPreviewText.typeface = Typeface.DEFAULT
+        val popupWidth = (key.width + Keyboard.theme.keyGap).toInt()
+        val popupHeight = 115.dp2px
+//        var previewLP = mPreviewText.layoutParams
+//        if (previewLP != null) {
+//            previewLP = ViewGroup.LayoutParams(popupWidth, popupHeight)
+//        }
+//        previewLP.width = popupWidth
+//        previewLP.height = popupHeight
+//        mPreviewContainer.layoutParams = previewLP
+
+        var popupX = key.x - Keyboard.theme.keyGap/2
+        var popupY = key.y + key.height - popupHeight
+
+        mHandler.removeMessages(MSG_REMOVE_PREVIEW)
+        val coordinates = IntArray(2)
+        getLocationInWindow(coordinates)
+        popupX += coordinates[0]
+        popupY += coordinates[1]
+
+        if (mPreviewPopup.isShowing) {
+            mPreviewPopup.update(popupX.toInt(), popupY.toInt(), popupWidth, popupHeight)
+        } else {
+            mPreviewPopup.width = popupWidth
+            mPreviewPopup.height = popupHeight
+            mPreviewPopup.showAtLocation(this, Gravity.NO_GRAVITY, popupX.toInt(), popupY.toInt())
+        }
+        mPreviewContainer.visibility = VISIBLE
     }
 
     private fun onBufferDraw() {
@@ -323,7 +401,7 @@ class KeyboardView: View {
         val keys = mKeyboard?.keys ?: listOf()
         val invalidKey = mInvalidatedKey
 
-        Log.i("[SK]", "[KeyboardView] onBufferDraw")
+//        Log.i("[SK]", "[KeyboardView] onBufferDraw")
 
         paint.color = Color.BLACK
         var drawSingleKey = false
@@ -357,7 +435,11 @@ class KeyboardView: View {
     }
 
     private fun closing() {
+        if (mPreviewPopup.isShowing) {
+            mPreviewPopup.dismiss()
+        }
         removeMessages()
+
         mBuffer = null
         mCanvas = null
     }
@@ -382,6 +464,9 @@ class KeyboardView: View {
     }
 
     fun setKeyboard(keyboard: Keyboard) {
+        if (mKeyboard != null) {
+            showPreview(null)
+        }
         // Remove any pending messages
         removeMessages()
         mKeyboard = keyboard

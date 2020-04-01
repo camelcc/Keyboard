@@ -9,6 +9,7 @@ import android.util.Log
 
 open class Key {
     companion object {
+        const val TAG = "[KEY]"
         const val EDGE_LEFT = 0x1
         const val EDGE_RIGHT = 0x2
         const val EDGE_TOP = 0x4
@@ -80,16 +81,22 @@ open class Key {
 
     // Informs the key that it has been pressed, in case it needs to change its appearance or state.
     open fun onPressed() {
+        Log.i(TAG, "$APP_TAG$TAG onPressed: $this")
         pressed = !pressed
     }
 
     // Changes the pressed state of the key
     open fun onReleased(inside: Boolean) {
+        Log.i(TAG, "$APP_TAG$TAG onReleased: $this")
         pressed = !pressed
     }
 
     open fun onClicked() {}
     open fun onDoubleClicked(): Boolean { return false }
+
+    override fun toString(): String {
+        return this::class.java.name
+    }
 }
 
 open class TextKey: Key {
@@ -97,8 +104,9 @@ open class TextKey: Key {
     var upperSize = Keyboard.theme.keyUpperTextSize.toFloat()
     var bold = false
 
+    var preview = false
 
-    private val text: String
+    val text: String
     private var superScript: String? = null
 
     constructor(text: String) {
@@ -132,14 +140,8 @@ open class TextKey: Key {
         }
     }
 
-    override fun onPressed() {
-        Log.i("[SK]", "[Key] onPressed: $text")
-        super.onPressed()
-    }
-
-    override fun onReleased(inside: Boolean) {
-        Log.i("[SK]", "[Key] onReleased: $text")
-        super.onReleased(inside)
+    override fun toString(): String {
+        return text
     }
 }
 

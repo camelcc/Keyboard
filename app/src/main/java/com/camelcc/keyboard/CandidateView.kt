@@ -13,6 +13,6 @@ class CandidateView: View {
     override fun onMeasure(widthMeasureSpec: Int, heightMeasureSpec: Int) {
         Log.e("[SK]", "CandidateView onMeasure")
         setMeasuredDimension(resolveSize(50, widthMeasureSpec),
-            resolveSize(70, heightMeasureSpec))
+            resolveSize(10, heightMeasureSpec))
     }
 }
