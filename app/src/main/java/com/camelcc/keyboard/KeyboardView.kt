@@ -1,9 +1,7 @@
 package com.camelcc.keyboard
 
-import android.R.attr
 import android.content.Context
 import android.graphics.*
-import android.graphics.drawable.ColorDrawable
 import android.os.Handler
 import android.os.Message
 import android.util.AttributeSet
@@ -21,18 +19,26 @@ class KeyboardView: View {
         const val MSG_SHOW_PREVIEW = 1
         const val MSG_REMOVE_PREVIEW = 2
         const val MSG_REPEAT = 3
+        const val MSG_LONG_PRESS = 4
         const val REPEAT_INTERVAL = 50L // 20 keys per second
         const val REPEAT_START_DELAY = 400L
         const val DELAY_BEFORE_PREVIEW = 0L
         const val DELAY_AFTER_PREVIEW = 70L
     }
+    private val LONGPRESS_TIMEOUT = ViewConfiguration.getLongPressTimeout().toLong()
+
     private var mKeyboard: Keyboard? = null
     private var mCurrentKeyIndex: Key? = null
 
     private val mShowPreview = true
-    private lateinit var mPreviewPopup:PopupWindow
-    private lateinit var mPreviewContainer: View
-    private lateinit var mPreviewText: TextView
+    private var mPreviewPopup: PopupWindow
+    private var mPreviewContainer: View
+    private var mPreviewText: TextView
+
+    private var mMiniKeyboardShowing = false
+    private var mMiniKeyboardPopup: PopupWindow
+    private var mMiniKeyboardPopupBounds = Rect()
+    private var mMiniKeyboard: PopupMiniKeyboardView
 
     // 一个touch序列中(down)，起始的位置
     private var mStartX = 0
@@ -42,7 +48,6 @@ class KeyboardView: View {
 
     private var mLastKey: Key? = null
     private var mCurrentKey: Key? = null
-//    private var mDownKey = NOT_A_KEY
     private lateinit var mGestureDetector: GestureDetector
 
     // #
@@ -88,20 +93,27 @@ class KeyboardView: View {
         mPreviewText = mPreviewContainer.findViewById(R.id.preview_text)
         mPreviewText.textSize = 28.0f
         mPreviewPopup.contentView = mPreviewContainer
+
+        mMiniKeyboardPopup = PopupWindow(context)
+        mMiniKeyboardPopup.setBackgroundDrawable(null)
+        mMiniKeyboardPopup.elevation = Keyboard.theme.popupElevation.toFloat()
+        mMiniKeyboardPopup.isClippingEnabled = false
+        mMiniKeyboardPopup.isTouchable = false
+
+        mMiniKeyboard = layoutInflater.inflate(R.layout.keyboard_mini, null) as PopupMiniKeyboardView
+        mMiniKeyboard.background = context.getDrawable(R.drawable.roundcornor_rect)
+        mMiniKeyboard.clickListener = object : PopupMiniKeyboardViewListener {
+            override fun onText(text: String) {
+                //TODO: text
+                dismissPopupKeyboard()
+            }
+        }
+        mMiniKeyboardPopup.contentView = mMiniKeyboard
     }
 
     override fun onAttachedToWindow() {
         super.onAttachedToWindow()
         mGestureDetector = GestureDetector(context, object: GestureDetector.SimpleOnGestureListener() {
-            override fun onFling(
-                e1: MotionEvent?,
-                e2: MotionEvent?,
-                velocityX: Float,
-                velocityY: Float
-            ): Boolean {
-                return super.onFling(e1, e2, velocityX, velocityY)
-            }
-
             override fun onDoubleTapEvent(ev: MotionEvent): Boolean {
                 if (ev.action != MotionEvent.ACTION_UP) {
                     return false
@@ -129,6 +141,9 @@ class KeyboardView: View {
                         }
                         val repeat = Message.obtain(this, MSG_REPEAT)
                         sendMessageDelayed(repeat, REPEAT_INTERVAL)
+                    }
+                    MSG_LONG_PRESS -> {
+                        openPopupIfRequired()
                     }
                     else -> {}
                 }
@@ -176,7 +191,7 @@ class KeyboardView: View {
         val action = ev.action
         var result = false
         val now = ev.eventTime
-//        Log.i("[SK]", "[KeyboardView] onTouchEvent: ${ev.action.action}, oc: $mOldPointerCount, c: $pointerCount")
+
         if (pointerCount != mOldPointerCount) {
             if (pointerCount == 1) {
                 val down = MotionEvent.obtain(now, now, MotionEvent.ACTION_DOWN, ev.x, ev.y, ev.metaState)
@@ -214,7 +229,8 @@ class KeyboardView: View {
         val key = mKeyboard?.getKey(touchX, touchY) ?: return true // consume
         mPossiblePoly = possiblePoly
 
-//        Log.i("[SK]", "[KeyboardView] onModifiedTouchEvent: ${action.action}")
+
+        Log.i("[SK]", "[KeyboardView] onModifiedTouchEvent: ${action.action}, x = ${ev.rawX}, y = ${ev.rawY}")
 
         // Track the last few movements to look for spurious swipes
         if (action == MotionEvent.ACTION_DOWN) {
@@ -230,13 +246,25 @@ class KeyboardView: View {
         if (mGestureDetector.onTouchEvent(ev)) {
             showPreview(null)
             mHandler.removeMessages(MSG_REPEAT)
+            mHandler.removeMessages(MSG_LONG_PRESS)
             return true
         }
 
         // Needs to be called after the gesture detector gets a turn, as it may have
         // displayed the mini keyboard
-        // TODO:
+        if (mMiniKeyboardShowing && mMiniKeyboardPopupBounds.contains(ev.rawX.toInt(), ev.rawY.toInt())) {
+            val now = ev.eventTime
+            val miniEV = MotionEvent.obtain(now, now, ev.action,
+                ev.rawX-mMiniKeyboardPopupBounds.left,
+                ev.rawY-mMiniKeyboardPopupBounds.top, ev.metaState)
+            if (mMiniKeyboard.onTouchEvent(miniEV)) {
+                return true
+            }
+        }
 
+        if (mMiniKeyboardShowing) {
+            dismissPopupKeyboard()
+        }
         when (action) {
             MotionEvent.ACTION_DOWN -> {
                 mAbortKey = false
@@ -244,7 +272,6 @@ class KeyboardView: View {
                 mStartY = touchY
                 mLastKey = null
                 mCurrentKey = key
-//                mDownKey = keyIndex
                 if (key.repeatable) {
                     mRepeatKey = key
                     val msg = mHandler.obtainMessage(MSG_REPEAT)
@@ -255,6 +282,8 @@ class KeyboardView: View {
                         mRepeatKey = null
                     }
                 }
+                val msg = mHandler.obtainMessage(MSG_LONG_PRESS)
+                mHandler.sendMessageDelayed(msg, LONGPRESS_TIMEOUT)
                 showPreview(key)
             }
             MotionEvent.ACTION_MOVE -> {
@@ -272,7 +301,10 @@ class KeyboardView: View {
                 }
                 if (!continueLongPress) {
                     // Cancel old longpress
-                    // TODO: cancel old longpress, and repeating
+                    mHandler.removeMessages(MSG_LONG_PRESS)
+                    // Start new longpress if key has changed
+                    val msg = mHandler.obtainMessage(MSG_LONG_PRESS)
+                    mHandler.sendMessageDelayed(msg, LONGPRESS_TIMEOUT)
                 }
                 showPreview(mCurrentKey)
             }
@@ -296,6 +328,7 @@ class KeyboardView: View {
             }
             MotionEvent.ACTION_CANCEL -> {
                 removeMessages()
+                dismissPopupKeyboard()
                 mAbortKey = true
                 showPreview(null)
                 invalidateKey(mCurrentKey)
@@ -426,6 +459,8 @@ class KeyboardView: View {
     private fun removeMessages() {
         if (::mHandler.isInitialized) {
             mHandler.removeMessages(MSG_REPEAT)
+            mHandler.removeMessages(MSG_LONG_PRESS)
+            mHandler.removeMessages(MSG_SHOW_PREVIEW)
         }
     }
 
@@ -434,9 +469,70 @@ class KeyboardView: View {
             mPreviewPopup.dismiss()
         }
         removeMessages()
+        dismissPopupKeyboard()
 
         mBuffer = null
         mCanvas = null
+    }
+
+    private fun openPopupIfRequired(): Boolean {
+        if (mCurrentKey == null) {
+            return false
+        }
+
+        var result = false
+        mCurrentKey?.let {
+            result = onLongPress(it)
+            if (result) {
+                showPreview(null)
+            }
+        }
+        return result
+    }
+
+    /**
+     * Called when a key is long pressed. By default this will open any popup keyboard associated
+     * with this key through the attributes popupLayout and popupCharacters.
+     * @param popupKey the key that was long pressed
+     * @return true if the long press is handled, false otherwise. Subclasses should call the
+     * method on the base class if the subclass doesn't wish to handle the call.
+     */
+    private fun onLongPress(key: Key): Boolean {
+        if (key !is PreviewTextKey) {
+            return false
+        }
+        Log.i("[SK]", "[KeyboardView] onLongPress $key")
+        val popupHeight = Keyboard.theme.popupMarginBottom + Keyboard.theme.popupKeyHeight
+        var popupX = key.x - key.width*2 - Keyboard.theme.keyGap*2
+        var popupY = key.y + key.height - popupHeight
+
+        val screenCoordinates = IntArray(2)
+        getLocationOnScreen(screenCoordinates)
+        val screenX = popupX + screenCoordinates[0]
+        val screenY = popupY + screenCoordinates[1]
+
+        val coordinates = IntArray(2)
+        getLocationInWindow(coordinates)
+        popupX += coordinates[0]
+        popupY += coordinates[1]
+
+        val popupWidth = (key.width*4+3*Keyboard.theme.keyGap).toInt()
+        mMiniKeyboardPopup.width = popupWidth
+        mMiniKeyboardPopup.height = popupHeight
+        mMiniKeyboardPopup.showAtLocation(this, Gravity.NO_GRAVITY, popupX.toInt(), popupY.toInt())
+        mMiniKeyboardShowing = true
+
+
+        mMiniKeyboardPopupBounds = Rect(screenX.toInt(), screenY.toInt(), screenX.toInt()+popupWidth, screenY.toInt()+popupHeight)
+        Log.i("[SK]", "[KeyboardView] show mini keyboard at $mMiniKeyboardPopupBounds")
+        return true
+    }
+
+    private fun dismissPopupKeyboard() {
+        if (mMiniKeyboardPopup.isShowing) {
+            mMiniKeyboardPopup.dismiss()
+            mMiniKeyboardShowing = false
+        }
     }
 
     fun invalidateAllKeys() {
