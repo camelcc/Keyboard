@@ -105,7 +105,7 @@ open class TextKey: Key {
     var bold = false
 
     val text: String
-    private var superScript: String? = null
+    var superScript: String? = null
 
     constructor(text: String) {
         this.text = text
@@ -154,9 +154,8 @@ open class IconKey(private val icon: Drawable): Key() {
     }
 }
 
-open class PreviewTextKey: TextKey {
-    constructor(text: String): super(text)
-    constructor(text: String, superScript: String): super(text, superScript)
+open class PreviewTextKey(text: String): TextKey(text) {
+    var miniKeys = listOf<String>()
 }
 
 open class DeleteKey(icon: Drawable): IconKey(icon)

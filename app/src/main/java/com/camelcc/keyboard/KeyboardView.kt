@@ -1,5 +1,6 @@
 package com.camelcc.keyboard
 
+import android.annotation.SuppressLint
 import android.content.Context
 import android.graphics.*
 import android.os.Handler
@@ -32,8 +33,7 @@ class KeyboardView: View {
 
     private val mShowPreview = true
     private var mPreviewPopup: PopupWindow
-    private var mPreviewContainer: View
-    private var mPreviewText: TextView
+    private var mPreviewPopupView: PopupPreviewTextView
 
     private var mMiniKeyboardShowing = false
     private var mMiniKeyboardPopup: PopupWindow
@@ -87,12 +87,8 @@ class KeyboardView: View {
         mPreviewPopup.isClippingEnabled = false
         mPreviewPopup.isTouchable = false
 
-        mPreviewContainer = layoutInflater.inflate(R.layout.keyboard_preview, null)
-        mPreviewContainer.background = context.getDrawable(R.drawable.roundcornor_rect)
-        mPreviewContainer.clipToOutline = true
-        mPreviewText = mPreviewContainer.findViewById(R.id.preview_text)
-        mPreviewText.textSize = 28.0f
-        mPreviewPopup.contentView = mPreviewContainer
+        mPreviewPopupView = PopupPreviewTextView(context)
+        mPreviewPopup.contentView = mPreviewPopupView
 
         mMiniKeyboardPopup = PopupWindow(context)
         mMiniKeyboardPopup.setBackgroundDrawable(null)
@@ -126,14 +122,15 @@ class KeyboardView: View {
             }
         })
         mGestureDetector.setIsLongpressEnabled(false)
-        mHandler = object : Handler() {
+        mHandler = @SuppressLint("HandlerLeak")
+        object : Handler() {
             override fun handleMessage(msg: Message) {
                 when (msg.what) {
                     MSG_SHOW_PREVIEW -> {
                         showKey(msg.obj as Key)
                     }
                     MSG_REMOVE_PREVIEW -> {
-                        mPreviewContainer.visibility = GONE
+                        mPreviewPopupView.visibility = GONE
                     }
                     MSG_REPEAT -> {
                         if (mRepeatKey != null && mCurrentKey == mRepeatKey) {
@@ -364,7 +361,7 @@ class KeyboardView: View {
                 }
             }
             key?.let {
-                if (mPreviewPopup.isShowing && mPreviewText.visibility == VISIBLE) {
+                if (mPreviewPopup.isShowing && mPreviewPopupView.visibility == VISIBLE) {
                     // Show right away, if it's already visible and finger is moving around
                     showKey(it)
                 } else {
@@ -376,12 +373,13 @@ class KeyboardView: View {
 
     private fun showKey(key: Key) {
         if (key !is PreviewTextKey) {
-            mPreviewContainer.visibility = INVISIBLE
+            mPreviewPopupView.visibility = GONE
             return
         }
 
-        mPreviewText.text = key.text
-        mPreviewText.typeface = Typeface.DEFAULT
+        mPreviewPopupView.key = key
+//        mPreviewText.text = key.text
+//        mPreviewText.typeface = Typeface.DEFAULT
         val popupWidth = (key.width + Keyboard.theme.keyGap).toInt()
         val popupHeight = Keyboard.theme.popupMarginBottom + Keyboard.theme.popupKeyHeight
 
@@ -401,7 +399,7 @@ class KeyboardView: View {
             mPreviewPopup.height = popupHeight
             mPreviewPopup.showAtLocation(this, Gravity.NO_GRAVITY, popupX.toInt(), popupY.toInt())
         }
-        mPreviewContainer.visibility = VISIBLE
+        mPreviewPopupView.visibility = VISIBLE
     }
 
     private fun onBufferDraw() {
@@ -498,33 +496,52 @@ class KeyboardView: View {
      * method on the base class if the subclass doesn't wish to handle the call.
      */
     private fun onLongPress(key: Key): Boolean {
-        if (key !is PreviewTextKey) {
+        if (key !is PreviewTextKey || key.miniKeys.isNullOrEmpty()) {
             return false
         }
         Log.i("[SK]", "[KeyboardView] onLongPress $key")
-        val popupHeight = Keyboard.theme.popupMarginBottom + Keyboard.theme.popupKeyHeight
-        var popupX = key.x - key.width*2 - Keyboard.theme.keyGap*2
+        val popupKeyWidth = key.width + Keyboard.theme.keyGap
+
+        var popupHeight = Keyboard.theme.popupMarginBottom + Keyboard.theme.popupKeyHeight
+        var popupWidth = (key.miniKeys.size*popupKeyWidth).toInt()
+        // multi-line
+        if (key.miniKeys.size > 5) {
+            popupHeight += Keyboard.theme.popupKeyHeight
+            popupWidth = (popupKeyWidth*((key.miniKeys.size+1)/2)).toInt()
+        }
+
         var popupY = key.y + key.height - popupHeight
+        var popupX = key.x-Keyboard.theme.keyGap/2
+        if (key.miniKeys.size <= 5) {
+            popupX -= ((key.miniKeys.size-1)/2)*popupKeyWidth
+        } else {
+            popupX -= (((key.miniKeys.size+1)/2-1)/2)*popupKeyWidth
+        }
+        while (popupX < 0) {
+            popupX += popupKeyWidth
+        }
+        while (popupX + popupWidth > width) {
+            popupX -= popupKeyWidth
+        }
 
         val screenCoordinates = IntArray(2)
         getLocationOnScreen(screenCoordinates)
-        val screenX = popupX + screenCoordinates[0]
-        val screenY = popupY + screenCoordinates[1]
+        val screenX = max(0, (popupX + screenCoordinates[0] - Keyboard.theme.miniKeyboardPadding).toInt())
+        val screenY = max(0, (popupY + screenCoordinates[1] - Keyboard.theme.miniKeyboardPadding).toInt())
+        mMiniKeyboardPopupBounds = Rect(screenX, screenY,
+            screenX+popupWidth+2*Keyboard.theme.miniKeyboardPadding,
+            screenY+popupHeight+2*Keyboard.theme.miniKeyboardPadding)
+        Log.i("[SK]", "[KeyboardView] show mini keyboard at $mMiniKeyboardPopupBounds")
 
         val coordinates = IntArray(2)
         getLocationInWindow(coordinates)
         popupX += coordinates[0]
         popupY += coordinates[1]
 
-        val popupWidth = (key.width*4+3*Keyboard.theme.keyGap).toInt()
         mMiniKeyboardPopup.width = popupWidth
         mMiniKeyboardPopup.height = popupHeight
         mMiniKeyboardPopup.showAtLocation(this, Gravity.NO_GRAVITY, popupX.toInt(), popupY.toInt())
         mMiniKeyboardShowing = true
-
-
-        mMiniKeyboardPopupBounds = Rect(screenX.toInt(), screenY.toInt(), screenX.toInt()+popupWidth, screenY.toInt()+popupHeight)
-        Log.i("[SK]", "[KeyboardView] show mini keyboard at $mMiniKeyboardPopupBounds")
         return true
     }
 

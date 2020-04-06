@@ -55,18 +55,45 @@ class Keyboard {
     }
 
     private fun buildQWERTY(upperCase: Boolean = false, stickShift: Boolean = false) {
-        val q = PreviewTextKey(if (upperCase) "Q" else "q", "1")
-        val w = PreviewTextKey(if (upperCase) "W" else "w", "2")
-        val e = PreviewTextKey(if (upperCase) "E" else "e", "3")
-        val r = PreviewTextKey(if (upperCase) "R" else "r", "4")
-        val t = PreviewTextKey(if (upperCase) "T" else "t", "5")
-        val y = PreviewTextKey(if (upperCase) "Y" else "y", "6")
-        val u = PreviewTextKey(if (upperCase) "U" else "u", "7")
-        val i = PreviewTextKey(if (upperCase) "I" else "i", "8")
-        val o = PreviewTextKey(if (upperCase) "O" else "o", "9")
-        val p = PreviewTextKey(if (upperCase) "P" else "p", "0")
+        val q = PreviewTextKey(if (upperCase) "Q" else "q")
+        q.superScript = "1"
+        q.miniKeys = listOf("1")
+        val w = PreviewTextKey(if (upperCase) "W" else "w")
+        w.superScript = "2"
+        w.miniKeys = listOf("2")
+        val e = PreviewTextKey(if (upperCase) "E" else "e")
+        e.superScript = "3"
+        e.miniKeys = listOf("\u0113", "\u00EA", "\u00EB", "\u00E8", "3", "\u00E9")
+        val r = PreviewTextKey(if (upperCase) "R" else "r")
+        r.superScript = "4"
+        r.miniKeys = listOf("4")
+        val t = PreviewTextKey(if (upperCase) "T" else "t")
+        t.superScript = "5"
+        t.miniKeys = listOf("5")
+        val y = PreviewTextKey(if (upperCase) "Y" else "y")
+        y.superScript = "6"
+        y.miniKeys = listOf("6")
+        val u = PreviewTextKey(if (upperCase) "U" else "u")
+        u.superScript = "7"
+        //TODO
+        u.miniKeys = listOf("\u0113", "\u00EA", "\u00EB", "\u00E8", "7", "\u00E9")
+        val i = PreviewTextKey(if (upperCase) "I" else "i")
+        i.superScript = "8"
+        //TODO
+        i.miniKeys = listOf("\u0113", "\u00EA", "\u00EB", "\u00E8", "8", "\u00E9")
+        val o = PreviewTextKey(if (upperCase) "O" else "o")
+        o.superScript = "9"
+        //TODO
+        o.miniKeys = listOf("", "\u0113", "\u00EA", "\u00EB", "\u00E8", "\u00E8", "\u00E8", "\u00E8", "9", "\u00E9")
+        val p = PreviewTextKey(if (upperCase) "P" else "p")
+        p.superScript = "0"
+        p.miniKeys = listOf("0")
         val a = PreviewTextKey(if (upperCase) "A" else "a")
+        //TODO
+        a.miniKeys = listOf("\u0113", "\u00EA", "\u00EB", "\u00E8", "\u00E9", "\u00E9", "\u00E9", "\u00E9")
         val s = PreviewTextKey(if (upperCase) "S" else "s")
+        //TODO
+        s.miniKeys = listOf("s")
         val d = PreviewTextKey(if (upperCase) "D" else "d")
         val f = PreviewTextKey(if (upperCase) "F" else "f")
         val g = PreviewTextKey(if (upperCase) "G" else "g")
@@ -80,9 +107,13 @@ class Keyboard {
         val z = PreviewTextKey(if (upperCase) "Z" else "z")
         val x = PreviewTextKey(if (upperCase) "X" else "x")
         val c = PreviewTextKey(if (upperCase) "C" else "c")
+        //TODO
+        c.miniKeys = listOf("c")
         val v = PreviewTextKey(if (upperCase) "V" else "v")
         val b = PreviewTextKey(if (upperCase) "B" else "b")
         val n = PreviewTextKey(if (upperCase) "N" else "n")
+        //TODO
+        n.miniKeys = listOf("n")
         val m = PreviewTextKey(if (upperCase) "M" else "m")
         val delete = DeleteKey(context.getDrawable(R.drawable.ic_delete_24dp)!!)
         delete.repeatable = true
@@ -103,6 +134,7 @@ class Keyboard {
         val period = PreviewTextKey(".")
         period.keyColor = theme.keyControlBackground
         period.textSize = theme.keySymbolTextSize.toFloat()
+        period.miniKeys = listOf(".", ".", ".", ".", ".", ".", ".", ".", ".", ".", ".", ".", ".", ".", ".", ".")
         val enter = IconKey(context.getDrawable(R.drawable.ic_check_24dp)!!)
         enter.keyColor = theme.keyEnterBackground
         enter.keyPressedColor = theme.keyEnterPressedBackground
@@ -123,25 +155,37 @@ class Keyboard {
 
     private fun buildPunctuation() {
         val p1 = PreviewTextKey("1")
+        p1.miniKeys = listOf("\u0113", "\u00EA", "\u00EB", "\u00E8", "\u00E9")
         val p2 = PreviewTextKey("2")
+        p2.miniKeys = listOf("2", "2")
         val p3 = PreviewTextKey("3")
+        p3.miniKeys = listOf("3", "3", "3")
         val p4 = PreviewTextKey("4")
+        p4.miniKeys = listOf("4")
         val p5 = PreviewTextKey("5")
+        p5.miniKeys = listOf("5")
         val p6 = PreviewTextKey("6")
         val p7 = PreviewTextKey("7")
+        p7.miniKeys = listOf("7")
         val p8 = PreviewTextKey("8")
         val p9 = PreviewTextKey("9")
         val p0 = PreviewTextKey("0")
-
+        p0.miniKeys = listOf("0", "0")
         val at = PreviewTextKey("@")
         val sharp = PreviewTextKey("#")
+        sharp.miniKeys = listOf("#")
         val dollar = PreviewTextKey("$")
+        dollar.miniKeys = listOf("\u0113", "\u00EA", "\u00EB", "\u00E8", "\u00E9")
         val underscore = PreviewTextKey("_")
         val and = PreviewTextKey("&")
         val minus = PreviewTextKey("-")
+        minus.miniKeys = listOf("\u0113", "\u00EA", "\u00EB", "\u00E8")
         val plus = PreviewTextKey("+")
+        plus.miniKeys = listOf("+")
         val leftParenthesis = PreviewTextKey("(")
+        leftParenthesis.miniKeys = listOf("(", "(", "(")
         val rightParenthesis = PreviewTextKey(")")
+        rightParenthesis.miniKeys = listOf(")", ")", ")")
         val slash = PreviewTextKey("/")
 
         val symbol = SymbolKey("=\\<")
@@ -150,12 +194,17 @@ class Keyboard {
         symbol.textSize = 18.dp2px.toFloat()
         symbol.bold = true
         val asterisk = PreviewTextKey("*")
+        asterisk.miniKeys = listOf("*", "*", "*")
         val quote = PreviewTextKey("\"")
+        quote.miniKeys = listOf("\u0113", "\u00EA", "\u00EB", "\u00E8", "\u00E9")
         val singleQuote = PreviewTextKey("'")
+        singleQuote.miniKeys = listOf("\u0113", "\u00EA", "\u00EB", "\u00E8", "\u00E9")
         val colon = PreviewTextKey(":")
         val semicolon = PreviewTextKey(";")
         val exclamation = PreviewTextKey("!")
+        exclamation.miniKeys = listOf("!")
         val question = PreviewTextKey("?")
+        question.miniKeys = listOf("?", "?")
         val delete = DeleteKey(context.getDrawable(R.drawable.ic_delete_24dp)!!)
         delete.repeatable = true
         delete.keyColor = theme.keyControlBackground
@@ -176,6 +225,7 @@ class Keyboard {
         val period = PreviewTextKey(".")
         period.keyColor = theme.keyControlBackground
         period.textSize = theme.keySymbolTextSize.toFloat()
+        period.miniKeys = listOf(".")
         val enter = IconKey(context.getDrawable(R.drawable.ic_check_24dp)!!)
         enter.keyColor = theme.keyEnterBackground
         enter.keyPressedColor = theme.keyEnterPressedBackground
@@ -200,11 +250,14 @@ class Keyboard {
         val p2 = PreviewTextKey("`")
         val p3 = PreviewTextKey("|")
         val p4 = PreviewTextKey("\u2022")
+        p4.miniKeys = listOf("\u0113", "\u00EA", "\u00EB", "\u00E8", "\u00E9")
         val p5 = PreviewTextKey("\u221A")
         val p6 = PreviewTextKey("\u03C0")
+        p6.miniKeys = listOf("\u0113", "\u00EA", "\u00EB")
         val p7 = PreviewTextKey("\u00F7")
         val p8 = PreviewTextKey("\u00D7")
         val p9 = PreviewTextKey("\u00B6")
+        p9.miniKeys = listOf(".")
         val p0 = PreviewTextKey("\u0394")
 
         val at = PreviewTextKey("\u00A3")
@@ -212,10 +265,15 @@ class Keyboard {
         val dollar = PreviewTextKey("\u20AC")
         val underscore = PreviewTextKey("\u00A5")
         val and = PreviewTextKey("^")
+        and.miniKeys = listOf("\u0113", "\u00EA", "\u00EB", "\u00E8")
         val minus = PreviewTextKey("\u00B0")
+        minus.miniKeys = listOf("\u0113", "\u00EA")
         val plus = PreviewTextKey("=")
+        plus.miniKeys = listOf("\u0113", "\u00EA", ".")
         val leftParenthesis = PreviewTextKey("{")
+        leftParenthesis.miniKeys = listOf("(")
         val rightParenthesis = PreviewTextKey("}")
+        rightParenthesis.miniKeys = listOf(")")
         val slash = PreviewTextKey("\\")
 
         val punctuation = PunctuationKey("?123")
@@ -224,6 +282,7 @@ class Keyboard {
         punctuation.textSize = 18.dp2px.toFloat()
         punctuation.bold = true
         val asterisk = PreviewTextKey("%")
+        asterisk.miniKeys = listOf(".", ".")
         val quote = PreviewTextKey("\u00A9")
         val singleQuote = PreviewTextKey("\u00AE")
         val colon = PreviewTextKey("\u2122")
@@ -243,6 +302,7 @@ class Keyboard {
         val comma = PreviewTextKey("<")
         comma.keyColor = theme.keyControlBackground
         comma.textSize = theme.keySymbolTextSize.toFloat()
+        comma.miniKeys = listOf("\u0113", "\u00EA", "\u0113", "\u00EA")
         val lang = IconKey(context.getDrawable(R.drawable.ic_lang_24dp)!!)
         val space = TextKey("English")
         space.keyPressedColor = theme.keyControlPressedBackground
@@ -250,6 +310,7 @@ class Keyboard {
         val period = PreviewTextKey(">")
         period.keyColor = theme.keyControlBackground
         period.textSize = theme.keySymbolTextSize.toFloat()
+        period.miniKeys = listOf("\u0113", "\u00EA", "\u0113", "\u00EA")
         val enter = IconKey(context.getDrawable(R.drawable.ic_check_24dp)!!)
         enter.keyColor = theme.keyEnterBackground
         enter.keyPressedColor = theme.keyEnterPressedBackground
