@@ -538,6 +538,8 @@ class KeyboardView: View {
         popupX += coordinates[0]
         popupY += coordinates[1]
 
+        mMiniKeyboard.keys = key.miniKeys
+        mMiniKeyboard.activeIndex = key.initMiniKeyIndex
         mMiniKeyboardPopup.width = popupWidth
         mMiniKeyboardPopup.height = popupHeight
         mMiniKeyboardPopup.showAtLocation(this, Gravity.NO_GRAVITY, popupX.toInt(), popupY.toInt())

@@ -156,6 +156,7 @@ open class IconKey(private val icon: Drawable): Key() {
 
 open class PreviewTextKey(text: String): TextKey(text) {
     var miniKeys = listOf<String>()
+    var initMiniKeyIndex = 0
 }
 
 open class DeleteKey(icon: Drawable): IconKey(icon)
