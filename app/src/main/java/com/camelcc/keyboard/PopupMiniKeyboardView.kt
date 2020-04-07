@@ -11,10 +11,11 @@ import android.view.ViewOutlineProvider
 class PopupMiniKeyboardView: View {
     var keys: List<String> = listOf()
     var activeIndex: Int = 0
-        set(value) {
-            field = value
-            invalidate()
-        }
+    var currentIndex: Int = activeIndex
+
+    private val singleLine: Boolean get() = keys.size <= 5
+    private val keyWidth: Int get() = if (singleLine) width/keys.size else width/(keys.size/2)
+    private val keyHeight: Int get() = Keyboard.theme.popupKeyHeight
 
     var clickListener: PopupMiniKeyboardViewListener? =null
 
@@ -44,15 +45,34 @@ class PopupMiniKeyboardView: View {
 
     override fun onTouchEvent(ev: MotionEvent): Boolean {
         val action = ev.action
-        Log.i("[SK]", "[PopupMiniKeyboardView] onTouchEvent: ${ev.action.action}, x: ${ev.x}, y: ${ev.y}")
-        when (action) {
-            MotionEvent.ACTION_MOVE -> {
+        if (action != MotionEvent.ACTION_MOVE && action != MotionEvent.ACTION_UP) {
+            return false
+        }
 
-            }
-            MotionEvent.ACTION_UP -> {
-                clickListener?.onText("q")
-            }
-            else -> { return false }
+        if (keyWidth == 0) {
+            Log.e("[SK]", "[PopupMiniKeyboardView] keywidth is 0")
+            return true
+        }
+
+        val x = ev.x.coerceAtLeast(.0f).coerceAtMost(keyWidth*(if (singleLine) keys.size else keys.size/2)-1.0f).toInt()
+        val y = ev.y.coerceAtLeast(.0f).coerceAtMost(height-1.0f).toInt()
+        var index = x/keyWidth
+        if (!singleLine && y >= height/2) {
+            index += keys.size/2
+        }
+        Log.i("[SK]", "[PopupMiniKeyboardView] onTouchEvent: ${ev.action.action}, ex: ${ev.x}, ey: ${ev.y}, x: $x, y: $y, kw: $keyWidth, i: $index")
+
+        index = index.coerceAtMost(keys.size-1)
+        if (keys[index].isBlank()) {
+            index = if (index - 1 >= 0) index-1 else index+1
+        }
+        if (index != currentIndex) {
+            currentIndex = index
+            invalidate()
+        }
+
+        if (action == MotionEvent.ACTION_UP) {
+            clickListener?.onText("a")
         }
         return true
     }
@@ -66,8 +86,7 @@ class PopupMiniKeyboardView: View {
         val outlinePath = Path()
         outlinePath.addRoundRect(RectF(.0f, .0f, width.toFloat(), (height-Keyboard.theme.popupMarginBottom).toFloat()),
             Keyboard.theme.popupRadius.toFloat(), Keyboard.theme.popupRadius.toFloat(), Path.Direction.CCW)
-        val singleLine = keys.size <= 5
-        val keyWidth = if (singleLine) width/keys.size else width/(keys.size/2)
+
 
         val dropPath = Path()
         val x = (if (singleLine) activeIndex else (if (activeIndex < keys.size/2) activeIndex else activeIndex-keys.size/2))*keyWidth
@@ -88,9 +107,6 @@ class PopupMiniKeyboardView: View {
         paint.color = Keyboard.theme.popupBackground
         canvas.drawRect(.0f, .0f, width.toFloat(), height.toFloat(), paint)
 
-        val singleLine = keys.size <= 5
-        val keyWidth = if (singleLine) width/keys.size else width/(keys.size/2)
-        val keyHeight = Keyboard.theme.popupKeyHeight
         var x = 0
         var y = 0
         for (i in keys.indices) {
@@ -103,7 +119,7 @@ class PopupMiniKeyboardView: View {
                 y = keyHeight
             }
 
-            val active = i == activeIndex
+            val active = i == currentIndex
             if (active) {
                 val style = paint.style
                 val color = paint.color

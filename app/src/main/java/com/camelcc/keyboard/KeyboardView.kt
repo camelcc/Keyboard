@@ -249,8 +249,8 @@ class KeyboardView: View {
         if (mMiniKeyboardShowing && mMiniKeyboardPopupBounds.contains(ev.rawX.toInt(), ev.rawY.toInt())) {
             val now = ev.eventTime
             val miniEV = MotionEvent.obtain(now, now, ev.action,
-                ev.rawX-mMiniKeyboardPopupBounds.left,
-                ev.rawY-mMiniKeyboardPopupBounds.top, ev.metaState)
+                ev.rawX-mMiniKeyboardPopupBounds.left-Keyboard.theme.miniKeyboardPadding,
+                ev.rawY-mMiniKeyboardPopupBounds.top-Keyboard.theme.miniKeyboardPadding, ev.metaState)
             if (mMiniKeyboard.onTouchEvent(miniEV)) {
                 return true
             }
@@ -537,6 +537,7 @@ class KeyboardView: View {
 
         mMiniKeyboard.keys = key.miniKeys
         mMiniKeyboard.activeIndex = key.initMiniKeyIndex
+        mMiniKeyboard.currentIndex = key.initMiniKeyIndex
         mMiniKeyboardPopup.width = popupWidth
         mMiniKeyboardPopup.height = popupHeight
         mMiniKeyboardPopup.showAtLocation(this, Gravity.NO_GRAVITY, popupX.toInt(), popupY.toInt())
