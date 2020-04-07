@@ -87,11 +87,15 @@ class PopupMiniKeyboardView: View {
         outlinePath.addRoundRect(RectF(.0f, .0f, width.toFloat(), (height-Keyboard.theme.popupMarginBottom).toFloat()),
             Keyboard.theme.popupRadius.toFloat(), Keyboard.theme.popupRadius.toFloat(), Path.Direction.CCW)
 
-
         val dropPath = Path()
         val x = (if (singleLine) activeIndex else (if (activeIndex < keys.size/2) activeIndex else activeIndex-keys.size/2))*keyWidth
         val y = height-Keyboard.theme.popupMarginBottom
-        dropPath.addRoundRect(RectF(x.toFloat(), (y-Keyboard.theme.popupRadius).toFloat(), (x+keyWidth).toFloat(), height.toFloat()), Keyboard.theme.popupRadius.toFloat(), Keyboard.theme.popupRadius.toFloat(), Path.Direction.CCW)
+
+        dropPath.addRect(x.toFloat(), (y-Keyboard.theme.popupRadius).toFloat(), (x+keyWidth).toFloat(), (height-Keyboard.theme.popupRadius).toFloat(), Path.Direction.CCW)
+
+        val dropRect = Path()
+        dropRect.addRoundRect(RectF(x.toFloat(), (y+Keyboard.theme.popupRadius).toFloat(), (x+keyWidth).toFloat(), height.toFloat()), Keyboard.theme.popupRadius.toFloat(), Keyboard.theme.popupRadius.toFloat(), Path.Direction.CCW)
+        dropPath.op(dropRect, Path.Op.UNION)
 
         outlinePath.op(dropPath, Path.Op.UNION)
         return outlinePath
