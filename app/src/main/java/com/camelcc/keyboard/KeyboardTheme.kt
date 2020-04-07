@@ -38,4 +38,7 @@ class KeyboardTheme {
     val popupSubscriptionSize = 16.dp2px.toFloat()
 
     val miniKeyboardPadding = 48.dp2px
+    val miniKeyboardTextSize = 24.dp2px
+    val miniKeyboardHighlight = 0xFF5E97F6.toInt()
+    val miniKeyboardHighlightRadius = 4.dp2px
 }

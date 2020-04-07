@@ -79,8 +79,6 @@ class KeyboardView: View {
         mPaint.textAlign = Paint.Align.CENTER
         mPaint.alpha = 255
 
-        val layoutInflater = context.getSystemService(Context.LAYOUT_INFLATER_SERVICE) as LayoutInflater
-
         mPreviewPopup = PopupWindow(context)
         mPreviewPopup.setBackgroundDrawable(null)
         mPreviewPopup.elevation = Keyboard.theme.popupElevation.toFloat()
@@ -96,8 +94,7 @@ class KeyboardView: View {
         mMiniKeyboardPopup.isClippingEnabled = false
         mMiniKeyboardPopup.isTouchable = false
 
-        mMiniKeyboard = layoutInflater.inflate(R.layout.keyboard_mini, null) as PopupMiniKeyboardView
-        mMiniKeyboard.background = context.getDrawable(R.drawable.roundcornor_rect)
+        mMiniKeyboard = PopupMiniKeyboardView(context)
         mMiniKeyboard.clickListener = object : PopupMiniKeyboardViewListener {
             override fun onText(text: String) {
                 //TODO: text

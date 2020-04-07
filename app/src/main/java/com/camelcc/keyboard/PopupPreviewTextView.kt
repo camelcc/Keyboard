@@ -1,11 +1,11 @@
 package com.camelcc.keyboard
 
 import android.content.Context
-import android.graphics.Canvas
-import android.graphics.Paint
-import android.graphics.Typeface
+import android.graphics.*
+import android.graphics.drawable.ColorDrawable
 import android.util.AttributeSet
 import android.view.View
+import android.view.ViewOutlineProvider
 
 
 class PopupPreviewTextView : View {
@@ -23,7 +23,12 @@ class PopupPreviewTextView : View {
     constructor(context: Context): this(context, null)
     constructor(context: Context, attrs: AttributeSet? = null): this(context, attrs, 0)
     constructor(context: Context, attrs: AttributeSet? = null, defStyleAttr: Int): super(context, attrs, defStyleAttr) {
-        background = context.getDrawable(R.drawable.roundcornor_rect)
+        background = ColorDrawable(Keyboard.theme.popupBackground)
+        outlineProvider = object: ViewOutlineProvider() {
+            override fun getOutline(view: View, outline: Outline) {
+                outline.setRoundRect(0, 0, view.width, view.height, Keyboard.theme.popupRadius.toFloat())
+            }
+        }
         clipToOutline = true
 
         mPaint.isAntiAlias = true
