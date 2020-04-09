@@ -6,10 +6,11 @@ import android.graphics.Paint
 import android.graphics.Typeface
 import android.graphics.drawable.Drawable
 import android.util.Log
+import java.lang.StringBuilder
+import kotlin.math.min
 
-open class Key {
+abstract class Key {
     companion object {
-        const val TAG = "[KEY]"
         const val EDGE_LEFT = 0x1
         const val EDGE_RIGHT = 0x2
         const val EDGE_TOP = 0x4
@@ -39,31 +40,29 @@ open class Key {
         paint.strokeWidth = Keyboard.theme.keyBorderWidth.toFloat()
         canvas.drawRoundRect(1.0f, 1.0f,
             width-1.0f, height+1.0f,
-            Keyboard.theme.keyBorderRadius.toFloat(), Keyboard.theme.keyBorderRadius.toFloat(), paint)
+            Keyboard.theme.keyBorderRadius, Keyboard.theme.keyBorderRadius, paint)
         paint.style = Paint.Style.FILL
-//        paint.color = if (pressed) Color.RED else keyColor
         paint.color = if (pressed) keyPressedColor else keyColor
         paint.strokeWidth = .0f
         canvas.drawRoundRect(.0f, .0f,
             width, height,
-            Keyboard.theme.keyBorderRadius.toFloat(), Keyboard.theme.keyBorderRadius.toFloat(), paint)
+            Keyboard.theme.keyBorderRadius, Keyboard.theme.keyBorderRadius, paint)
         paint.style = style
         paint.color = color
 
         drawContent(canvas, paint)
-
         canvas.translate(-x, -y)
     }
 
     // Returns the square of the distance between the center of the key and the given point
-    open fun squareDistanceFrom(x: Int, y: Int): Int {
+    fun squareDistanceFrom(x: Int, y: Int): Int {
         val dx = this.x + width/2 - x
         val dy = this.y + height/2 - y
         return (dx*dx + dy*dy).toInt()
     }
 
     // Detects if a point fall inside this key
-    open fun isInside(x: Int, y: Int): Boolean {
+    fun isInside(x: Int, y: Int): Boolean {
         val left = (edges and EDGE_LEFT) > 0
         val right = (edges and EDGE_RIGHT) > 0
         val top = (edges and EDGE_TOP) > 0
@@ -77,17 +76,15 @@ open class Key {
         return false
     }
 
-    open fun drawContent(canvas: Canvas, paint: Paint) {}
+    abstract fun drawContent(canvas: Canvas, paint: Paint)
 
     // Informs the key that it has been pressed, in case it needs to change its appearance or state.
-    open fun onPressed() {
-        Log.i(TAG, "$APP_TAG$TAG onPressed: $this")
+    fun onPressed() {
         pressed = !pressed
     }
 
     // Changes the pressed state of the key
-    open fun onReleased(inside: Boolean) {
-        Log.i(TAG, "$APP_TAG$TAG onReleased: $this")
+    fun onReleased(inside: Boolean) {
         pressed = !pressed
     }
 
@@ -99,22 +96,14 @@ open class Key {
     }
 }
 
-open class TextKey: Key {
+open class TextKey(var text: String) : Key() {
     var textSize = Keyboard.theme.keyTextSize.toFloat()
     var upperSize = Keyboard.theme.keyUpperTextSize.toFloat()
     var bold = false
 
-    val text: String
-    var superScript: String? = null
-
-    constructor(text: String) {
-        this.text = text
-    }
-
-    constructor(text: String, superScript: String) {
-        this.text = text
-        this.superScript = superScript
-    }
+    var superScript = ""
+    var miniKeys = listOf<String>()
+    var initMiniKeyIndex = 0
 
     override fun drawContent(canvas: Canvas, paint: Paint) {
         paint.textSize = textSize
@@ -128,11 +117,11 @@ open class TextKey: Key {
         if (bold) {
             paint.typeface = Typeface.DEFAULT
         }
-        superScript?.let {
+        if (superScript.isNotBlank()) {
             paint.textSize = upperSize
             paint.typeface = Typeface.DEFAULT_BOLD
-            canvas.drawText(it,
-                width - paint.measureText(it),
+            canvas.drawText(superScript,
+                width - paint.measureText(superScript),
                 paint.textSize, paint)
             paint.typeface = Typeface.DEFAULT
         }
@@ -154,14 +143,23 @@ open class IconKey(private val icon: Drawable): Key() {
     }
 }
 
-open class PreviewTextKey(text: String): TextKey(text) {
-    var miniKeys = listOf<String>()
-    var initMiniKeyIndex = 0
+class PreviewTextKey(text: String): TextKey(text) {
+    constructor(text: String,
+                superScript: String,
+                miniKeys: List<String> = listOf(),
+                activeIndex: Int = 0) : this(text) {
+        this.superScript = superScript
+        this.miniKeys = miniKeys
+        this.initMiniKeyIndex = activeIndex
+    }
 }
 
-open class DeleteKey(icon: Drawable): IconKey(icon)
-open class NumberKey(text: String): TextKey(text)
-open class SymbolKey(text: String): TextKey(text)
-open class PunctuationKey(text: String): TextKey(text)
-open class QWERTYKey(text: String): TextKey(text)
-open class ShiftKey(icon: Drawable): IconKey(icon)
+val NOT_A_KEY = PreviewTextKey("")
+
+class DeleteKey(icon: Drawable): IconKey(icon)
+class NumberKey(text: String): TextKey(text)
+class SymbolKey(text: String): TextKey(text)
+class PunctuationKey(text: String): TextKey(text)
+class QWERTYKey(text: String): TextKey(text)
+class ShiftKey(icon: Drawable): IconKey(icon)
+class SpaceKey(text: String): TextKey(text)

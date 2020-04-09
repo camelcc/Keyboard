@@ -18,7 +18,7 @@ class KeyboardTheme {
     var keyColor = Color.WHITE
     var keyBorderColor = 0xFFA9ABAD.toInt()
     val keyBorderWidth = 2//px
-    val keyBorderRadius = 8.dp2px
+    val keyBorderRadius = 8.dp2px.toFloat()
     val keyTextSize = 26.dp2px
     val keySymbolTextSize = 22.dp2px
     val keySpaceTextSize = 14.dp2px

@@ -1,6 +1,5 @@
 package com.camelcc.keyboard
 
-import android.annotation.SuppressLint
 import android.content.Context
 import android.graphics.*
 import android.os.Handler
@@ -9,14 +8,10 @@ import android.util.AttributeSet
 import android.util.Log
 import android.view.*
 import android.widget.PopupWindow
-import android.widget.TextView
 import kotlin.math.max
-
 
 class KeyboardView: View {
     companion object {
-        const val NOT_A_KEY = -1
-        const val DEBOUNCE_TIME = 70
         const val MSG_SHOW_PREVIEW = 1
         const val MSG_REMOVE_PREVIEW = 2
         const val MSG_REPEAT = 3
@@ -29,33 +24,24 @@ class KeyboardView: View {
     private val LONGPRESS_TIMEOUT = ViewConfiguration.getLongPressTimeout().toLong()
 
     private var mKeyboard: Keyboard? = null
-    private var mCurrentKeyIndex: Key? = null
+    private var mPreviewingKey: Key = NOT_A_KEY
 
+    // preview popup
     private val mShowPreview = true
     private var mPreviewPopup: PopupWindow
     private var mPreviewPopupView: PopupPreviewTextView
 
+    // mini keyboard
     private var mMiniKeyboardShowing = false
     private var mMiniKeyboardPopup: PopupWindow
     private var mMiniKeyboardPopupBounds = Rect()
     private var mMiniKeyboard: PopupMiniKeyboardView
 
-    // 一个touch序列中(down)，起始的位置
-    private var mStartX = 0
-    private var mStartY = 0
-
-    private var mPaint = Paint()
-
-    private var mLastKey: Key? = null
-    private var mCurrentKey: Key? = null
+    private var mCurrentKey: Key = NOT_A_KEY
     private lateinit var mGestureDetector: GestureDetector
-
-    // #
-    private var mRepeatKey: Key? = null
     private var mAbortKey = true
-    private var mInvalidatedKey: Key? = null
-    private var mPossiblePoly = false
-    private val mSwipeTracker = SwipeTracker()
+    private var mRepeatKey: Key = NOT_A_KEY
+    private var mInvalidatedKey: Key = NOT_A_KEY
 
     // ## Keyboard drawing
     // Whether the keyboard bitmap to be redrawn before it's blitted.
@@ -68,8 +54,13 @@ class KeyboardView: View {
     private var mCanvas: Canvas? = null
     // The dirty region in the keyboard bitmap
     private var mDirtyRect = Rect()
+    private var mPaint = Paint()
 
     private lateinit var mHandler: Handler
+
+    private var mOldPointerCount = 1
+    private var mOldPointerX = .0f
+    private var mOldPointerY = .0f
 
     constructor(context: Context): this(context, null)
     constructor(context: Context, attrs: AttributeSet? = null): this(context, attrs, 0)
@@ -97,11 +88,33 @@ class KeyboardView: View {
         mMiniKeyboard = PopupMiniKeyboardView(context)
         mMiniKeyboard.clickListener = object : PopupMiniKeyboardViewListener {
             override fun onText(text: String) {
-                //TODO: text
                 dismissPopupKeyboard()
             }
         }
         mMiniKeyboardPopup.contentView = mMiniKeyboard
+    }
+
+    fun setKeyboard(keyboard: Keyboard) {
+        if (mKeyboard != null) {
+            showPreview(NOT_A_KEY)
+        }
+        // Remove any pending messages
+        removeMessages()
+        mKeyboard = keyboard
+        background = Keyboard.theme.background
+        requestLayout()
+        // Hint to reallocate the buffer if the size changed
+        mKeyboardChanged = true
+        invalidateAllKeys()
+        // Switching to a different keyboard should abort any pending keys so that the key up
+        // doesn't get delivered to the old or new keyboard
+        mAbortKey = true
+    }
+
+    fun invalidateAllKeys() {
+        mDirtyRect.union(0, 0, width, height)
+        mDrawPending = true
+        invalidate()
     }
 
     override fun onAttachedToWindow() {
@@ -119,30 +132,27 @@ class KeyboardView: View {
             }
         })
         mGestureDetector.setIsLongpressEnabled(false)
-        mHandler = @SuppressLint("HandlerLeak")
-        object : Handler() {
-            override fun handleMessage(msg: Message) {
-                when (msg.what) {
-                    MSG_SHOW_PREVIEW -> {
-                        showKey(msg.obj as Key)
+        mHandler = Handler(Handler.Callback { msg ->
+            when (msg.what) {
+                MSG_SHOW_PREVIEW -> showKey(msg.obj as Key)
+                MSG_REMOVE_PREVIEW -> mPreviewPopupView.visibility = GONE
+                MSG_REPEAT -> {
+                    if (mRepeatKey != NOT_A_KEY && mCurrentKey == mRepeatKey) {
+                        mKeyboard?.onClick(mRepeatKey)
                     }
-                    MSG_REMOVE_PREVIEW -> {
-                        mPreviewPopupView.visibility = GONE
-                    }
-                    MSG_REPEAT -> {
-                        if (mRepeatKey != null && mCurrentKey == mRepeatKey) {
-                            mKeyboard?.onClick(mRepeatKey!!)
-                        }
-                        val repeat = Message.obtain(this, MSG_REPEAT)
-                        sendMessageDelayed(repeat, REPEAT_INTERVAL)
-                    }
-                    MSG_LONG_PRESS -> {
-                        openPopupIfRequired()
-                    }
-                    else -> {}
+                    val repeat = Message.obtain(mHandler, MSG_REPEAT)
+                    mHandler.sendMessageDelayed(repeat, REPEAT_INTERVAL)
                 }
+                MSG_LONG_PRESS -> openPopupIfRequired()
+                else -> {}
             }
-        }
+            false
+        })
+    }
+
+    override fun onDetachedFromWindow() {
+        super.onDetachedFromWindow()
+        closing()
     }
 
     override fun onMeasure(widthMeasureSpec: Int, heightMeasureSpec: Int) {
@@ -162,22 +172,62 @@ class KeyboardView: View {
 
     override fun onDraw(canvas: Canvas) {
         super.onDraw(canvas)
-//        Log.i("[SK]", "[KeyboardView]: onDraw")
         if (mDrawPending || mBuffer == null || mKeyboardChanged) {
             onBufferDraw()
         }
         canvas.drawBitmap(mBuffer!!, .0f, .0f, null)
     }
 
-    override fun onDetachedFromWindow() {
-        super.onDetachedFromWindow()
-        Log.i("[SK]", "[KeyboardView]: onDetachedFromWindow, closing")
-        closing()
+    private fun onBufferDraw() {
+        if (mBuffer == null || mKeyboardChanged) {
+            if (mBuffer == null || (mKeyboardChanged &&
+                        (mBuffer?.width != width || mBuffer?.height != height))) {
+                // Make sure our bitmap is at least 1x1
+                mBuffer = Bitmap.createBitmap(max(1, width), max(1, height), Bitmap.Config.ARGB_8888)
+                mBuffer?.let { mCanvas = Canvas(it) }
+            }
+            invalidateAllKeys()
+            mKeyboardChanged = false
+        }
+
+        if (mKeyboard == null) {
+            return
+        }
+
+        mCanvas?.save()
+        val canvas = mCanvas!!
+        canvas.clipRect(mDirtyRect)
+
+        val paint = mPaint
+        val clipRegion = Rect(0, 0, 0, 0)
+        val keys = mKeyboard?.keys ?: listOf()
+        val invalidKey = mInvalidatedKey
+
+        paint.color = Color.BLACK
+        var drawSingleKey = false
+        if (invalidKey != NOT_A_KEY && canvas.getClipBounds(clipRegion)) {
+            if (invalidKey.x - 1 <= clipRegion.left &&
+                invalidKey.y - 1 <= clipRegion.top &&
+                invalidKey.x + invalidKey.width + 1 >= clipRegion.right &&
+                invalidKey.y + invalidKey.height + 1 >= clipRegion.bottom) {
+                drawSingleKey = true
+            }
+        }
+        canvas.drawColor(0x00000000, PorterDuff.Mode.CLEAR)
+        for (key in keys) {
+            if (drawSingleKey && key != invalidKey) {
+                continue
+            }
+            key.paint(canvas, paint)
+        }
+
+        mInvalidatedKey = NOT_A_KEY
+
+        mCanvas?.restore()
+        mDrawPending = false
+        mDirtyRect.setEmpty()
     }
 
-    private var mOldPointerCount = 1
-    private var mOldPointerX = .0f
-    private var mOldPointerY = .0f
     override fun onTouchEvent(ev: MotionEvent): Boolean {
         // Convert multi-pointer up/down events to single up/down events to
         // deal with the typical multi-pointer behavior of two thumb typing
@@ -219,18 +269,9 @@ class KeyboardView: View {
         val touchX = (ev.x - paddingLeft).toInt()
         val touchY = (ev.y - paddingTop).toInt()
         val action = ev.action
-        val evTime = ev.eventTime
         val key = mKeyboard?.getKey(touchX, touchY) ?: return true // consume
-        mPossiblePoly = possiblePoly
-
 
         Log.i("[SK]", "[KeyboardView] onModifiedTouchEvent: ${action.action}, x = ${ev.rawX}, y = ${ev.rawY}")
-
-        // Track the last few movements to look for spurious swipes
-        if (action == MotionEvent.ACTION_DOWN) {
-            mSwipeTracker.clear()
-        }
-        mSwipeTracker.addMovement(ev)
 
         // Ignore all motion events until a DOWN
         if (mAbortKey && action != MotionEvent.ACTION_DOWN && action != MotionEvent.ACTION_CANCEL) {
@@ -238,7 +279,7 @@ class KeyboardView: View {
         }
 
         if (mGestureDetector.onTouchEvent(ev)) {
-            showPreview(null)
+            showPreview(NOT_A_KEY)
             mHandler.removeMessages(MSG_REPEAT)
             mHandler.removeMessages(MSG_LONG_PRESS)
             return true
@@ -262,9 +303,6 @@ class KeyboardView: View {
         when (action) {
             MotionEvent.ACTION_DOWN -> {
                 mAbortKey = false
-                mStartX = touchX
-                mStartY = touchY
-                mLastKey = null
                 mCurrentKey = key
                 if (key.repeatable) {
                     mRepeatKey = key
@@ -273,7 +311,7 @@ class KeyboardView: View {
                     mKeyboard?.onClick(key)
                     // Delivering the key could have caused an abort
                     if (mAbortKey) {
-                        mRepeatKey = null
+                        mRepeatKey = NOT_A_KEY
                     }
                 }
                 val msg = mHandler.obtainMessage(MSG_LONG_PRESS)
@@ -282,14 +320,12 @@ class KeyboardView: View {
             }
             MotionEvent.ACTION_MOVE -> {
                 var continueLongPress = false
-                if (mCurrentKey == null) {
+                if (mCurrentKey == NOT_A_KEY) {
                     mCurrentKey = key
                 } else {
                     if (key == mCurrentKey) {
                         continueLongPress = true
                     } else {
-                        // TODO: multi tap
-                        mLastKey = mCurrentKey
                         mCurrentKey = key
                     }
                 }
@@ -304,65 +340,56 @@ class KeyboardView: View {
             }
             MotionEvent.ACTION_UP -> {
                 removeMessages()
-                if (key == mCurrentKey) {
-
-                } else {
-                    mLastKey = mCurrentKey
-                    mCurrentKey = key
-                }
-                showPreview(null)
+                mCurrentKey = key
+                showPreview(NOT_A_KEY)
                 // If we're not on a repeating key (which sends on a DOWN event)
-                if (mRepeatKey == null && !mAbortKey) {
-                    mCurrentKey?.let {
-                        mKeyboard?.onClick(it)
-                    }
+                if (mRepeatKey == NOT_A_KEY && !mAbortKey && mCurrentKey != NOT_A_KEY) {
+                    mKeyboard?.onClick(mCurrentKey)
                 }
                 invalidateKey(key)
-                mRepeatKey = null
+                mRepeatKey = NOT_A_KEY
             }
             MotionEvent.ACTION_CANCEL -> {
                 removeMessages()
                 dismissPopupKeyboard()
                 mAbortKey = true
-                showPreview(null)
+                showPreview(NOT_A_KEY)
                 invalidateKey(mCurrentKey)
             }
         }
         return true
     }
 
-    private fun showPreview(key: Key? = null) {
-        val oldKey = mCurrentKeyIndex
+    private fun showPreview(key: Key) {
+        val oldKey = mPreviewingKey
+        mPreviewingKey = key
 
-        mCurrentKeyIndex = key
         // Release the old key and press the new key
-        if (oldKey != mCurrentKeyIndex) {
-            oldKey?.let {
-                it.onReleased(mCurrentKeyIndex == null)
-                invalidateKey(it)
-                //TODO: accessibility
+        if (oldKey != mPreviewingKey) {
+            if (oldKey != NOT_A_KEY) {
+                oldKey.onReleased(mPreviewingKey == NOT_A_KEY)
+                invalidateKey(oldKey)
             }
-            mCurrentKeyIndex?.let {
-                it.onPressed()
-                invalidateKey(it)
-                //TODO: accessibility
+            if (mPreviewingKey != NOT_A_KEY) {
+                mPreviewingKey.onPressed()
+                invalidateKey(mPreviewingKey)
             }
         }
         // If key changed and preview is on
-        if (oldKey != mCurrentKeyIndex && mShowPreview) {
+        if (oldKey != mPreviewingKey && mShowPreview) {
             mHandler.removeMessages(MSG_SHOW_PREVIEW)
             if (mPreviewPopup.isShowing) {
-                if (key == null) {
+                if (mPreviewingKey == NOT_A_KEY) {
                     mHandler.sendMessageDelayed(mHandler.obtainMessage(MSG_REMOVE_PREVIEW),
                         DELAY_AFTER_PREVIEW)
                 }
             }
-            key?.let {
+            if (key != NOT_A_KEY) {
                 if (mPreviewPopup.isShowing && mPreviewPopupView.visibility == VISIBLE) {
                     // Show right away, if it's already visible and finger is moving around
-                    showKey(it)
+                    showKey(key)
                 } else {
-                    mHandler.sendMessageDelayed(mHandler.obtainMessage(MSG_SHOW_PREVIEW, it), DELAY_BEFORE_PREVIEW)
+                    mHandler.sendMessageDelayed(mHandler.obtainMessage(MSG_SHOW_PREVIEW, key), DELAY_BEFORE_PREVIEW)
                 }
             }
         }
@@ -375,8 +402,6 @@ class KeyboardView: View {
         }
 
         mPreviewPopupView.key = key
-//        mPreviewText.text = key.text
-//        mPreviewText.typeface = Typeface.DEFAULT
         val popupWidth = (key.width + Keyboard.theme.keyGap).toInt()
         val popupHeight = Keyboard.theme.popupMarginBottom + Keyboard.theme.popupKeyHeight
 
@@ -399,58 +424,6 @@ class KeyboardView: View {
         mPreviewPopupView.visibility = VISIBLE
     }
 
-    private fun onBufferDraw() {
-        if (mBuffer == null || mKeyboardChanged) {
-            if (mBuffer == null || (mKeyboardChanged &&
-                   (mBuffer?.width != width || mBuffer?.height != height))) {
-                // Make sure our bitmap is at least 1x1
-                mBuffer = Bitmap.createBitmap(max(1, width), max(1, height), Bitmap.Config.ARGB_8888)
-                mBuffer?.let { mCanvas = Canvas(it) }
-            }
-            invalidateAllKeys()
-            mKeyboardChanged = false
-        }
-
-        if (mKeyboard == null) {
-            return
-        }
-
-        mCanvas?.save()
-        val canvas = mCanvas!!
-        canvas.clipRect(mDirtyRect)
-
-        val paint = mPaint
-        val clipRegion = Rect(0, 0, 0, 0)
-        val keys = mKeyboard?.keys ?: listOf()
-        val invalidKey = mInvalidatedKey
-
-//        Log.i("[SK]", "[KeyboardView] onBufferDraw")
-
-        paint.color = Color.BLACK
-        var drawSingleKey = false
-        if (invalidKey != null && canvas.getClipBounds(clipRegion)) {
-            if (invalidKey.x - 1 <= clipRegion.left &&
-                    invalidKey.y - 1 <= clipRegion.top &&
-                    invalidKey.x + invalidKey.width + 1 >= clipRegion.right &&
-                    invalidKey.y + invalidKey.height + 1 >= clipRegion.bottom) {
-                drawSingleKey = true
-            }
-        }
-        canvas.drawColor(0x00000000, PorterDuff.Mode.CLEAR)
-        for (key in keys) {
-            if (drawSingleKey && key != invalidKey) {
-                continue
-            }
-            key.paint(canvas, paint)
-        }
-
-        mInvalidatedKey = null
-
-        mCanvas?.restore()
-        mDrawPending = false
-        mDirtyRect.setEmpty()
-    }
-
     private fun removeMessages() {
         if (::mHandler.isInitialized) {
             mHandler.removeMessages(MSG_REPEAT)
@@ -471,16 +444,14 @@ class KeyboardView: View {
     }
 
     private fun openPopupIfRequired(): Boolean {
-        if (mCurrentKey == null) {
+        if (mCurrentKey == NOT_A_KEY) {
             return false
         }
 
         var result = false
-        mCurrentKey?.let {
-            result = onLongPress(it)
-            if (result) {
-                showPreview(null)
-            }
+        result = onLongPress(mCurrentKey)
+        if (result) {
+            showPreview(NOT_A_KEY)
         }
         return result
     }
@@ -501,15 +472,16 @@ class KeyboardView: View {
 
         var popupHeight = Keyboard.theme.popupMarginBottom + Keyboard.theme.popupKeyHeight
         var popupWidth = (key.miniKeys.size*popupKeyWidth).toInt()
+        val singleLine = key.miniKeys.size <= 5
         // multi-line
-        if (key.miniKeys.size > 5) {
+        if (!singleLine) {
             popupHeight += Keyboard.theme.popupKeyHeight
             popupWidth = (popupKeyWidth*((key.miniKeys.size+1)/2)).toInt()
         }
 
         var popupY = key.y + key.height - popupHeight
         var popupX = key.x-Keyboard.theme.keyGap/2
-        if (key.miniKeys.size <= 5) {
+        if (singleLine) {
             popupX -= ((key.miniKeys.size-1)/2)*popupKeyWidth
         } else {
             popupX -= (((key.miniKeys.size+1)/2-1)/2)*popupKeyWidth
@@ -552,12 +524,6 @@ class KeyboardView: View {
         }
     }
 
-    fun invalidateAllKeys() {
-        mDirtyRect.union(0, 0, width, height)
-        mDrawPending = true
-        invalidate()
-    }
-
     private fun invalidateKey(key: Key?) {
         if (key == null) {
             return
@@ -569,22 +535,5 @@ class KeyboardView: View {
             (key.y + key.height + paddingTop).toInt())
         onBufferDraw()
         invalidate()
-    }
-
-    fun setKeyboard(keyboard: Keyboard) {
-        if (mKeyboard != null) {
-            showPreview(null)
-        }
-        // Remove any pending messages
-        removeMessages()
-        mKeyboard = keyboard
-        background = Keyboard.theme.background
-        requestLayout()
-        // Hint to reallocate the buffer if the size changed
-        mKeyboardChanged = true
-        invalidateAllKeys()
-        // Switching to a different keyboard should abort any pending keys so that the key up
-        // doesn't get delivered to the old or new keyboard
-        mAbortKey = true
     }
 }

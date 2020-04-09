@@ -7,9 +7,8 @@ import android.util.AttributeSet
 import android.view.View
 import android.view.ViewOutlineProvider
 
-
 class PopupPreviewTextView : View {
-    var key: PreviewTextKey?  = null
+    var key: PreviewTextKey = NOT_A_KEY
         set(value) {
             field = value
             invalidate()
@@ -43,14 +42,14 @@ class PopupPreviewTextView : View {
 
     override fun onDraw(canvas: Canvas) {
         super.onDraw(canvas)
-        key?.let {
+        if (key != NOT_A_KEY) {
             val paint = mPaint
             paint.textSize = Keyboard.theme.popupTextSize
-            canvas.drawText(it.text,
+            canvas.drawText(key.text,
                 width/2.0f,
                 keyHeight/2-(paint.descent()+paint.ascent())/2, paint)
 
-            if (!it.miniKeys.isNullOrEmpty()) {
+            if (!key.miniKeys.isNullOrEmpty()) {
                 paint.textSize = Keyboard.theme.popupSubscriptionSize
 
                 canvas.drawText(ellipsis,
