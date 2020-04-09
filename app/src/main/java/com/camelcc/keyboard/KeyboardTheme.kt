@@ -34,7 +34,6 @@ class KeyboardTheme {
     val popupTextSize = 28.dp2px.toFloat()
     val popupElevation = 4.dp2px
     val popupMarginBottom = 70.dp2px
-    val popupKeyHeight = 48.dp2px
     val popupSubscriptionSize = 16.dp2px.toFloat()
 
     val miniKeyboardPadding = 48.dp2px

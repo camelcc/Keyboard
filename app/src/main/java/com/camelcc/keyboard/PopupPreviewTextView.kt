@@ -17,7 +17,7 @@ class PopupPreviewTextView : View {
     private val mPaint = Paint()
     private val ellipsis = "\u2026"
     private var ellipsisWidth = .0f
-    private val keyHeight = Keyboard.theme.popupKeyHeight
+    private val keyHeight: Int get() = height-Keyboard.theme.popupMarginBottom
 
     constructor(context: Context): this(context, null)
     constructor(context: Context, attrs: AttributeSet? = null): this(context, attrs, 0)

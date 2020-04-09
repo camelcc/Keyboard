@@ -17,6 +17,7 @@ class Keyboard {
 
     var width = 0
     var height = 0
+    var keyHeight = 0
 
     private var mode = NORMAL
 
@@ -51,6 +52,7 @@ class Keyboard {
         }
         layout.layout(width, height)
         height = layout.height
+        keyHeight = layout.keyHeight
         keyboardView.invalidateAllKeys()
     }
 
@@ -385,8 +387,13 @@ class Keyboard {
 }
 
 class QWERTYLayout {
+    companion object {
+        const val GRID_WIDTH = 20
+        const val GRID_HEIGHT = 8
+    }
     var width = 0
     var height = 0
+    var keyHeight = 0
     var rows = arrayOf(arrayOf<Key>())
 
     var displayWidth = 0
@@ -407,7 +414,8 @@ class QWERTYLayout {
         val normalWidth = (width - Keyboard.theme.paddingLeft- Keyboard.theme.paddingRight-11* Keyboard.theme.keyGap)/10.toFloat()
         val controlWidth = (width - Keyboard.theme.paddingLeft- Keyboard.theme.paddingRight-10* Keyboard.theme.keyGap-7*normalWidth)/2.toFloat()
         val spaceWidth = 4*normalWidth+3* Keyboard.theme.keyGap.toFloat()
-        val normalHeight = if (horizontal) Keyboard.theme.keyHeightHorizontal.toFloat() else Keyboard.theme.keyHeight.toFloat()
+        keyHeight = if (horizontal) Keyboard.theme.keyHeightHorizontal else Keyboard.theme.keyHeight
+        val normalHeight = keyHeight.toFloat()
         px = (Keyboard.theme.paddingLeft+ Keyboard.theme.keyGap).toFloat()
         py = (Keyboard.theme.paddingTop+ verticalPadding).toFloat()
 
@@ -457,8 +465,8 @@ class QWERTYLayout {
         height = py.toInt()
 
         // Round-up so we don't have any pixels outside the grid
-        gw = width/20
-        gh = height/8
+        gw = (width+GRID_WIDTH-1)/ GRID_WIDTH
+        gh = (height+ GRID_HEIGHT)/ GRID_HEIGHT
         val threshold = (width/10) * 1.8
         computeNearestNeighbors((threshold*threshold).toInt(), keys)
     }
@@ -466,7 +474,7 @@ class QWERTYLayout {
     fun getNearestKeys(x: Int, y: Int): Array<Key> {
         val px = if (x < 0) 0 else if (x >= width) width-1 else x
         val py = if (y < 0) 0 else if (y >= height) height-1 else y
-        val index = (py/gh)*20+(px/gw)
+        val index = (py/gh)* GRID_WIDTH+(px/gw)
         assert(index < grids.size)
         return grids[index]
     }

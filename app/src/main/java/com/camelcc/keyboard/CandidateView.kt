@@ -15,7 +15,7 @@ class CandidateView: View {
     override fun onMeasure(widthMeasureSpec: Int, heightMeasureSpec: Int) {
         Log.e("[SK]", "CandidateView onMeasure")
 
-        val height = Keyboard.theme.keyHeight + Keyboard.theme.popupKeyHeight
+        val height = Keyboard.theme.keyHeight + Keyboard.theme.popupMarginBottom
         setMeasuredDimension(resolveSize(50, widthMeasureSpec),
             height)
     }

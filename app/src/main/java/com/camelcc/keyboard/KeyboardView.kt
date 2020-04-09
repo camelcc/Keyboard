@@ -166,6 +166,7 @@ class KeyboardView: View {
         super.onSizeChanged(w, h, oldw, oldh)
         Log.i("[SK]", "[KeyboardView]: onSizeChanged, w = $w, h = $h")
         mKeyboard?.resize(w, h)
+        closing()
         // Release the buffer if any and it will be reallocated on the next draw
         mBuffer = null
     }
@@ -403,7 +404,7 @@ class KeyboardView: View {
 
         mPreviewPopupView.key = key
         val popupWidth = (key.width + Keyboard.theme.keyGap).toInt()
-        val popupHeight = Keyboard.theme.popupMarginBottom + Keyboard.theme.popupKeyHeight
+        val popupHeight = Keyboard.theme.popupMarginBottom + (mKeyboard?.keyHeight ?: 0)
 
         var popupX = key.x - Keyboard.theme.keyGap/2
         var popupY = key.y + key.height - popupHeight
@@ -470,12 +471,13 @@ class KeyboardView: View {
         Log.i("[SK]", "[KeyboardView] onLongPress $key")
         val popupKeyWidth = key.width + Keyboard.theme.keyGap
 
-        var popupHeight = Keyboard.theme.popupMarginBottom + Keyboard.theme.popupKeyHeight
+        val popupKeyHeight = mKeyboard?.keyHeight ?: 0
+        var popupHeight = Keyboard.theme.popupMarginBottom + popupKeyHeight
         var popupWidth = (key.miniKeys.size*popupKeyWidth).toInt()
         val singleLine = key.miniKeys.size <= 5
         // multi-line
         if (!singleLine) {
-            popupHeight += Keyboard.theme.popupKeyHeight
+            popupHeight += popupKeyHeight
             popupWidth = (popupKeyWidth*((key.miniKeys.size+1)/2)).toInt()
         }
 

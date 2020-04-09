@@ -15,7 +15,7 @@ class PopupMiniKeyboardView: View {
 
     private val singleLine: Boolean get() = keys.size <= 5
     private val keyWidth: Int get() = if (singleLine) width/keys.size else width/(keys.size/2)
-    private val keyHeight: Int get() = Keyboard.theme.popupKeyHeight
+    private val keyHeight: Int get() = if (singleLine) height-Keyboard.theme.popupMarginBottom else (height-Keyboard.theme.popupMarginBottom)/2
 
     var clickListener: PopupMiniKeyboardViewListener? =null
 
