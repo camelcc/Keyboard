@@ -47,4 +47,5 @@ class KeyboardTheme {
     val candidateHeight = 45.dp2px
     val candidateTextPadding = 2.dp2px
     val candidateVerticalPadding = 8.dp2px
+    val candidatePickedColor = 0xFFD2D4D7.toInt()
 }

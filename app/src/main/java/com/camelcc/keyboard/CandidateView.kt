@@ -5,6 +5,7 @@ import android.graphics.Canvas
 import android.graphics.Color
 import android.graphics.Paint
 import android.util.Log
+import android.view.MotionEvent
 import android.view.View
 
 class CandidateView: View {
@@ -15,7 +16,7 @@ class CandidateView: View {
     private var mSuggestions = listOf<String>()
     private var mSuggestionsTextSize = Keyboard.theme.candidateTextSize
 
-    private var mPressed = -1
+    private var mActiveIndex = -1
 
     constructor(context: Context): super(context) {
         paint.color = Color.BLACK
@@ -101,19 +102,52 @@ class CandidateView: View {
         paint.textSize = mSuggestionsTextSize
         paint.color = Color.BLACK
         for (i in mSuggestions.indices) {
+            if (i == mActiveIndex) {
+                paint.color = Keyboard.theme.candidatePickedColor
+                canvas.drawRect(x.toFloat(), top.toFloat(), (x+w).toFloat(), height.toFloat(), paint)
+            }
+
+            paint.color = Color.BLACK
             if ((i == 1 && !mTypedWordValid) || (i == 0 && mTypedWordValid)) {
                 paint.isFakeBoldText = true
             }
             val tw = paint.measureText(mSuggestions[i])
-            canvas.drawText(mSuggestions[i], x + textPadding + w/2.0f-tw/2.0f,
+            canvas.drawText(mSuggestions[i], x + w/2.0f-tw/2.0f,
                 top + height/2-(paint.descent()+paint.ascent())/2, paint)
             paint.isFakeBoldText = false
-            x += w + 2*textPadding
+            x += w
 
             if (i != mSuggestions.size-1) {
                 canvas.drawLine(x.toFloat(), top+Keyboard.theme.candidateVerticalPadding.toFloat(), x+1.dp2px.toFloat(), height.toFloat()-Keyboard.theme.candidateVerticalPadding, paint)
                 x += 1.dp2px
             }
         }
+    }
+
+    override fun onTouchEvent(ev: MotionEvent): Boolean {
+        val w = (width - paddingLeft - paddingRight)/mSuggestions.size
+        val index = ev.x.toInt() / w
+
+        when (ev.action) {
+            MotionEvent.ACTION_DOWN -> {
+                if (mActiveIndex != index) {
+                    mActiveIndex = index
+                    invalidate()
+                }
+            }
+            MotionEvent.ACTION_UP -> {
+                if (index == mActiveIndex) {
+                    //TODO: send on suggestion pick
+                }
+                mActiveIndex = -1
+                invalidate()
+            }
+            MotionEvent.ACTION_CANCEL -> {
+                mActiveIndex = -1
+                invalidate()
+            }
+            else -> {}
+        }
+        return true
     }
 }
