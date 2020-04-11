@@ -41,8 +41,10 @@ class KeyboardTheme {
     val miniKeyboardHighlight = 0xFF5E97F6.toInt()
     val miniKeyboardHighlightRadius = 4.dp2px
 
-    val candidateTextSize = 24.dp2px.toFloat()
-    val candidateMinTextSize = 16.dp2px.toFloat()
+    val candidateViewPadding = 8.dp2px
+    val candidateTextSize = 18.dp2px.toFloat()
+    val candidateMinTextSize = 14.dp2px.toFloat()
     val candidateHeight = 45.dp2px
     val candidateTextPadding = 2.dp2px
+    val candidateVerticalPadding = 8.dp2px
 }

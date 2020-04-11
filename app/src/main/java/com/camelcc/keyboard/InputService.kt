@@ -11,6 +11,8 @@ import android.view.inputmethod.InputMethodSubtype
 class InputService : InputMethodService() {
     val tag = "[SK]"
 
+    private var candidateView: CandidateView? = null
+
     override fun onCreate() {
         super.onCreate()
         Log.i(tag, "onCreate")
@@ -28,13 +30,15 @@ class InputService : InputMethodService() {
 
     override fun onCreateCandidatesView(): View {
         Log.i(tag, "onCreateCandidatesView")
-        return CandidateView(this)
+        candidateView = CandidateView(this)
+        return candidateView!!
     }
 
     override fun onStartInputView(info: EditorInfo?, restarting: Boolean) {
         super.onStartInputView(info, restarting)
         Log.i(tag, "onStartInputView")
         setCandidatesViewShown(true)
+        candidateView?.setSuggestions(listOf("hell", "hello", "haha"), false)
     }
 
     override fun onCurrentInputMethodSubtypeChanged(newSubtype: InputMethodSubtype?) {
