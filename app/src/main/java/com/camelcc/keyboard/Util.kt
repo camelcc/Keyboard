@@ -14,4 +14,13 @@ val Int.action: String get() {
     }
 }
 
+enum class KeyCode {
+    DONE, DELETE, SPACE
+}
+
+interface KeyboardActionListener {
+    fun onText(text: String)
+    fun onKey(keyCode: KeyCode)
+}
+
 

@@ -2,6 +2,7 @@ package com.camelcc.keyboard
 
 import android.content.Context
 import android.graphics.*
+import android.graphics.drawable.ColorDrawable
 import android.os.Handler
 import android.os.Message
 import android.util.AttributeSet
@@ -22,6 +23,8 @@ class KeyboardView: View {
         const val DELAY_AFTER_PREVIEW = 70L
     }
     private val LONGPRESS_TIMEOUT = ViewConfiguration.getLongPressTimeout().toLong()
+
+    var mKeyboardActionListener: KeyboardActionListener? = null
 
     private var mKeyboard: Keyboard? = null
     private var mPreviewingKey: Key = NOT_A_KEY
@@ -86,9 +89,12 @@ class KeyboardView: View {
         mMiniKeyboardPopup.isTouchable = false
 
         mMiniKeyboard = PopupMiniKeyboardView(context)
-        mMiniKeyboard.clickListener = object : PopupMiniKeyboardViewListener {
+        mMiniKeyboard.clickListener = object : KeyboardActionListener {
             override fun onText(text: String) {
+                mKeyboardActionListener?.onText(text)
                 dismissPopupKeyboard()
+            }
+            override fun onKey(keyCode: KeyCode) {
             }
         }
         mMiniKeyboardPopup.contentView = mMiniKeyboard
@@ -101,7 +107,8 @@ class KeyboardView: View {
         // Remove any pending messages
         removeMessages()
         mKeyboard = keyboard
-        background = Keyboard.theme.background
+        keyboard.keyboardListener = mKeyboardActionListener
+        background = ColorDrawable(Keyboard.theme.background)
         requestLayout()
         // Hint to reallocate the buffer if the size changed
         mKeyboardChanged = true
@@ -201,7 +208,7 @@ class KeyboardView: View {
 
         val paint = mPaint
         val clipRegion = Rect(0, 0, 0, 0)
-        val keys = mKeyboard?.keys ?: listOf()
+        val keys = mKeyboard?.getKeys() ?: listOf()
         val invalidKey = mInvalidatedKey
 
         paint.color = Color.BLACK

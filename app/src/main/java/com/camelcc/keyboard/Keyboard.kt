@@ -19,9 +19,10 @@ class Keyboard {
     var height = 0
     var keyHeight = 0
 
-    private var mode = NORMAL
+    var keyboardListener: KeyboardActionListener? = null
 
-    var keys = listOf<Key>()
+    private var mode = NORMAL
+    private var keys = listOf<Key>()
     private var layout: QWERTYLayout
 
     private val context: Context
@@ -40,6 +41,10 @@ class Keyboard {
         width = dm.widthPixels
         height = 0
         buildLayout()
+    }
+
+    fun getKeys(): List<Key> {
+        return keys
     }
 
     private fun buildLayout() {
@@ -117,7 +122,7 @@ class Keyboard {
         period.textSize = theme.keySymbolTextSize.toFloat()
         period.miniKeys = listOf("&", "%", "+", "\"", "-", ":", "'", "@", ";", "/", "(", ")", "#", "!", ",", "?")
         period.initMiniKeyIndex = 14
-        val enter = IconKey(context.getDrawable(R.drawable.ic_check_24dp)!!)
+        val enter = DoneKey(context.getDrawable(R.drawable.ic_check_24dp)!!)
         enter.keyColor = theme.keyEnterBackground
         enter.keyPressedColor = theme.keyEnterPressedBackground
 
@@ -190,7 +195,7 @@ class Keyboard {
         period.keyColor = theme.keyControlBackground
         period.textSize = theme.keySymbolTextSize.toFloat()
         period.miniKeys = listOf("\u2026")
-        val enter = IconKey(context.getDrawable(R.drawable.ic_check_24dp)!!)
+        val enter = DoneKey(context.getDrawable(R.drawable.ic_check_24dp)!!)
         enter.keyColor = theme.keyEnterBackground
         enter.keyPressedColor = theme.keyEnterPressedBackground
 
@@ -268,7 +273,7 @@ class Keyboard {
         period.textSize = theme.keySymbolTextSize.toFloat()
         period.miniKeys = listOf("\u27E9", "\u00BB", "\u2265", "\u203A")
         period.initMiniKeyIndex = 2
-        val enter = IconKey(context.getDrawable(R.drawable.ic_check_24dp)!!)
+        val enter = DoneKey(context.getDrawable(R.drawable.ic_check_24dp)!!)
         enter.keyColor = theme.keyEnterBackground
         enter.keyPressedColor = theme.keyEnterPressedBackground
 
@@ -313,7 +318,6 @@ class Keyboard {
 
     fun onClick(key: Key) {
         Log.i("[SK]", "[Keyboard] click: $key")
-        key.onClicked()
 
         var updated = false
         when (key) {
@@ -352,14 +356,24 @@ class Keyboard {
             }
             is DeleteKey -> {
                 Log.i("[SK]", "[Keyboard] delete")
+                keyboardListener?.onKey(KeyCode.DELETE)
             }
             is SpaceKey -> {
                 Log.i("[SK]", "[Keyboard] space")
+                keyboardListener?.onKey(KeyCode.SPACE)
+            }
+            is DoneKey -> {
+                Log.i("[SK]", "[Keyboard] done")
+                keyboardListener?.onKey(KeyCode.DONE)
             }
             else -> {
                 if (mode == UPPER) {
                     mode = NORMAL
                     updated = true
+                }
+
+                if (key is TextKey) {
+                    keyboardListener?.onText(key.text)
                 }
             }
         }
@@ -374,8 +388,6 @@ class Keyboard {
                 if (mode == UPPER) {
                     mode = STICKY_UPPER
                     buildLayout()
-                } else {
-                    key.onClicked()
                 }
                 true
             }

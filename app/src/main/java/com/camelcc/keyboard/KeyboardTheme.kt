@@ -4,7 +4,7 @@ import android.graphics.Color
 import android.graphics.drawable.ColorDrawable
 
 class KeyboardTheme {
-    var background = ColorDrawable(0xFFE8EAED.toInt())
+    var background = 0xFFE8EAED.toInt()
     var paddingLeft: Int = 0.dp2px
     var paddingRight: Int = 0.dp2px
     var paddingTop: Int = 0.dp2px
@@ -40,4 +40,9 @@ class KeyboardTheme {
     val miniKeyboardTextSize = 24.dp2px
     val miniKeyboardHighlight = 0xFF5E97F6.toInt()
     val miniKeyboardHighlightRadius = 4.dp2px
+
+    val candidateTextSize = 24.dp2px.toFloat()
+    val candidateMinTextSize = 16.dp2px.toFloat()
+    val candidateHeight = 45.dp2px
+    val candidateTextPadding = 2.dp2px
 }

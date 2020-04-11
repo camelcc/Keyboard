@@ -5,6 +5,7 @@ import android.graphics.Color
 import android.graphics.Paint
 import android.graphics.Typeface
 import android.graphics.drawable.Drawable
+import android.graphics.drawable.Icon
 import android.util.Log
 import java.lang.StringBuilder
 import kotlin.math.min
@@ -88,7 +89,6 @@ abstract class Key {
         pressed = !pressed
     }
 
-    open fun onClicked() {}
     open fun onDoubleClicked(): Boolean { return false }
 
     override fun toString(): String {
@@ -163,3 +163,4 @@ class PunctuationKey(text: String): TextKey(text)
 class QWERTYKey(text: String): TextKey(text)
 class ShiftKey(icon: Drawable): IconKey(icon)
 class SpaceKey(text: String): TextKey(text)
+class DoneKey(icon: Drawable): IconKey(icon)
