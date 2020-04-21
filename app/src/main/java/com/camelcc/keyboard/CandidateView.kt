@@ -9,9 +9,16 @@ import android.view.MotionEvent
 import android.view.View
 
 class CandidateView: View {
+    interface CandidateViewListener {
+        fun onSuggestion(text: String, index: Int, fromCompletion: Boolean)
+    }
+
+    var listener: CandidateViewListener? = null
+
     private var contentHeight = 0
     private val paint: Paint = Paint()
 
+    private var mFromCompletion = false
     private var mTypedWordValid = true
     private var mSuggestions = listOf<String>()
     private var mSuggestionsTextSize = Keyboard.theme.candidateTextSize
@@ -27,7 +34,8 @@ class CandidateView: View {
         setPadding(Keyboard.theme.candidateViewPadding, 0, Keyboard.theme.candidateViewPadding, 0)
     }
 
-    fun setSuggestions(suggestions: List<String>, typedWordValid: Boolean) {
+    fun setSuggestions(suggestions: List<String>, fromCompletion: Boolean, typedWordValid: Boolean) {
+        mFromCompletion = fromCompletion
         mSuggestions = suggestions
         mTypedWordValid = typedWordValid
         invalidate()
@@ -97,6 +105,10 @@ class CandidateView: View {
         paint.color = Keyboard.theme.background
         canvas.drawRect(.0f, top.toFloat(), width.toFloat(), height.toFloat(), paint)
 
+        if (mSuggestions.isNullOrEmpty()) {
+            return
+        }
+
         var x = paddingLeft
         val w = (width - paddingLeft - paddingRight - (mSuggestions.size-1)*1.dp2px)/mSuggestions.size
         paint.textSize = mSuggestionsTextSize
@@ -137,7 +149,7 @@ class CandidateView: View {
             }
             MotionEvent.ACTION_UP -> {
                 if (index == mActiveIndex) {
-                    //TODO: send on suggestion pick
+                    listener?.onSuggestion(mSuggestions[index], index, mFromCompletion)
                 }
                 mActiveIndex = -1
                 invalidate()

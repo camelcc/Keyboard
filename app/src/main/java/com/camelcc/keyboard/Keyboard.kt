@@ -2,10 +2,17 @@ package com.camelcc.keyboard
 
 import android.content.Context
 import android.util.Log
+import android.view.KeyEvent
 import kotlin.math.max
 import kotlin.math.min
 
 class Keyboard {
+    interface KeyboardListener {
+        fun onLayoutChanged()
+        fun onText(text: String)
+        fun onKey(keyCode: Int)
+    }
+
     companion object {
         var theme = KeyboardTheme()
         const val NORMAL = 1
@@ -19,18 +26,16 @@ class Keyboard {
     var height = 0
     var keyHeight = 0
 
-    var keyboardListener: KeyboardActionListener? = null
+    var keyboardListener: KeyboardListener? = null
 
     private var mode = NORMAL
     private var keys = listOf<Key>()
     private var layout: QWERTYLayout
 
     private val context: Context
-    private val keyboardView: KeyboardView
 
-    constructor(context: Context, kb: KeyboardView) {
+    constructor(context: Context) {
         this.context = context
-        this.keyboardView = kb
 
         val dm = context.resources.displayMetrics
         val dw = min(dm.widthPixels, dm.heightPixels)
@@ -58,7 +63,7 @@ class Keyboard {
         layout.layout(width, height)
         height = layout.height
         keyHeight = layout.keyHeight
-        keyboardView.invalidateAllKeys()
+        keyboardListener?.onLayoutChanged()
     }
 
     private fun buildQWERTY(upperCase: Boolean = false, stickShift: Boolean = false) {
@@ -356,15 +361,15 @@ class Keyboard {
             }
             is DeleteKey -> {
                 Log.i("[SK]", "[Keyboard] delete")
-                keyboardListener?.onKey(KeyCode.DELETE)
+                keyboardListener?.onKey(KeyEvent.KEYCODE_DEL)
             }
             is SpaceKey -> {
                 Log.i("[SK]", "[Keyboard] space")
-                keyboardListener?.onKey(KeyCode.SPACE)
+                keyboardListener?.onKey(KeyEvent.KEYCODE_SPACE)
             }
             is DoneKey -> {
                 Log.i("[SK]", "[Keyboard] done")
-                keyboardListener?.onKey(KeyCode.DONE)
+                keyboardListener?.onKey(KeyEvent.KEYCODE_ENTER)
             }
             else -> {
                 if (mode == UPPER) {

@@ -24,8 +24,7 @@ class KeyboardView: View {
     }
     private val LONGPRESS_TIMEOUT = ViewConfiguration.getLongPressTimeout().toLong()
 
-    var mKeyboardActionListener: KeyboardActionListener? = null
-
+    private var mKeyboardActionListener: KeyboardActionListener? = null
     private var mKeyboard: Keyboard? = null
     private var mPreviewingKey: Key = NOT_A_KEY
 
@@ -94,8 +93,7 @@ class KeyboardView: View {
                 mKeyboardActionListener?.onText(text)
                 dismissPopupKeyboard()
             }
-            override fun onKey(keyCode: KeyCode) {
-            }
+            override fun onKey(keyCode: Int) {}
         }
         mMiniKeyboardPopup.contentView = mMiniKeyboard
     }
@@ -107,7 +105,19 @@ class KeyboardView: View {
         // Remove any pending messages
         removeMessages()
         mKeyboard = keyboard
-        keyboard.keyboardListener = mKeyboardActionListener
+        keyboard.keyboardListener = object : Keyboard.KeyboardListener {
+            override fun onLayoutChanged() {
+                invalidateAllKeys()
+            }
+
+            override fun onText(text: String) {
+                mKeyboardActionListener?.onText(text)
+            }
+
+            override fun onKey(keyCode: Int) {
+                mKeyboardActionListener?.onKey(keyCode)
+            }
+        }
         background = ColorDrawable(Keyboard.theme.background)
         requestLayout()
         // Hint to reallocate the buffer if the size changed
@@ -122,6 +132,10 @@ class KeyboardView: View {
         mDirtyRect.union(0, 0, width, height)
         mDrawPending = true
         invalidate()
+    }
+
+    fun setKeyboardListener(listener: KeyboardActionListener?) {
+        mKeyboardActionListener = listener
     }
 
     override fun onAttachedToWindow() {
@@ -440,7 +454,7 @@ class KeyboardView: View {
         }
     }
 
-    private fun closing() {
+    fun closing() {
         if (mPreviewPopup.isShowing) {
             mPreviewPopup.dismiss()
         }
