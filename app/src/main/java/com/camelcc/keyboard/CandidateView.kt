@@ -120,13 +120,13 @@ class CandidateView: View {
             }
 
             paint.color = Color.BLACK
-            if ((i == 1 && !mTypedWordValid) || (i == 0 && mTypedWordValid)) {
-                paint.isFakeBoldText = true
-            }
+//            if ((i == 1 && !mTypedWordValid) || (i == 0 && mTypedWordValid)) {
+//                paint.isFakeBoldText = true
+//            }
             val tw = paint.measureText(mSuggestions[i])
             canvas.drawText(mSuggestions[i], x + w/2.0f-tw/2.0f,
                 top + height/2-(paint.descent()+paint.ascent())/2, paint)
-            paint.isFakeBoldText = false
+//            paint.isFakeBoldText = false
             x += w
 
             if (i != mSuggestions.size-1) {

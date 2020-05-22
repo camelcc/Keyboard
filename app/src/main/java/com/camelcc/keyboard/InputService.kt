@@ -1,6 +1,7 @@
 package com.camelcc.keyboard
 
 import android.content.Context
+import android.content.Intent
 import android.inputmethodservice.InputMethodService
 import android.text.InputType
 import android.util.Log
@@ -8,12 +9,32 @@ import android.view.KeyEvent
 import android.view.View
 import android.view.ViewGroup
 import android.view.WindowManager
-import android.view.inputmethod.*
+import android.view.inputmethod.CompletionInfo
+import android.view.inputmethod.EditorInfo
+import android.view.inputmethod.InputMethodManager
+import android.view.inputmethod.InputMethodSubtype
+import android.view.textservice.*
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleOwner
+import androidx.lifecycle.LifecycleRegistry
+import kotlinx.coroutines.*
+import java.util.*
+import java.util.stream.Stream
+import kotlin.collections.ArrayList
 
-class InputService : InputMethodService(), KeyboardActionListener, CandidateView.CandidateViewListener {
+
+class InputService : InputMethodService(),
+    KeyboardActionListener,
+    CandidateView.CandidateViewListener,
+    SpellCheckerSession.SpellCheckerSessionListener {
     val tag = "[SK]"
 
+    private val ioJob = Job()
+    private val serviceIOScope = CoroutineScope(Dispatchers.IO + ioJob)
+
     private lateinit var inputManager: InputMethodManager
+//    private lateinit var textService: TextServicesManager
+    private lateinit var suggestion: TypeSuggestion
 
     private lateinit var keyboard: Keyboard
     private lateinit var keyboardView: KeyboardView
@@ -24,10 +45,22 @@ class InputService : InputMethodService(), KeyboardActionListener, CandidateView
     private var mCompletionOn = false
     private var mCompletions: Array<CompletionInfo> = arrayOf()
 
+//    private lateinit var spellCheckSession: SpellCheckerSession
+
     override fun onCreate() {
         super.onCreate()
         Log.i(tag, "onCreate")
+
         inputManager = getSystemService(Context.INPUT_METHOD_SERVICE) as InputMethodManager
+//        textService = getSystemService(Context.TEXT_SERVICES_MANAGER_SERVICE) as TextServicesManager
+        suggestion = TypeSuggestion(serviceIOScope)
+        // TODO: try catch
+        suggestion.initializeDictionary(this)
+    }
+
+    override fun onDestroy() {
+        super.onDestroy()
+        ioJob.cancel()
     }
 
     /**
@@ -64,11 +97,11 @@ class InputService : InputMethodService(), KeyboardActionListener, CandidateView
      */
     override fun onStartInput(attribute: EditorInfo, restarting: Boolean) {
         super.onStartInput(attribute, restarting)
+//        spellCheckSession = textService.newSpellCheckerSession(null, Locale.US, this, false)
 
         // Reset our state.  We want to do this even if restarting, because
         // the underlying state of the text editor could have changed in any way.
         mComposing.clear()
-        updateCandidates()
 
         mPredictionOn = false
         mCompletionOn = false
@@ -160,6 +193,8 @@ class InputService : InputMethodService(), KeyboardActionListener, CandidateView
         // its window.
         setCandidatesViewShown(false)
         keyboardView.closing()
+
+//        spellCheckSession.close()
     }
 
     /**
@@ -171,15 +206,13 @@ class InputService : InputMethodService(), KeyboardActionListener, CandidateView
         newSelEnd: Int,
         candidatesStart: Int,
         candidatesEnd: Int) {
-        super.onUpdateSelection(
-            oldSelStart,
-            oldSelEnd,
-            newSelStart,
-            newSelEnd,
-            candidatesStart,
-            candidatesEnd
-        )
-        //TODO
+        super.onUpdateSelection(oldSelStart, oldSelEnd, newSelStart, newSelEnd, candidatesStart, candidatesEnd)
+        // If the current selection in the text view changes, we should
+        // clear whatever candidate text we have.
+        if (mComposing.isNotEmpty() && (newSelStart != candidatesEnd || newSelEnd != candidatesEnd)) {
+            mComposing.clear()
+            updateCandidates()
+        }
     }
 
     /**
@@ -228,7 +261,7 @@ class InputService : InputMethodService(), KeyboardActionListener, CandidateView
         val ic = currentInputConnection ?: return
         if (text.isBlank() || !(text[0] in 'a'..'z' || text[0] in 'A'..'Z')) {
             ic.beginBatchEdit()
-            ic.commitText(mComposing.reverse(), 1)
+            ic.commitText(mComposing, 1)
             mComposing.clear()
             ic.commitText(text, 0)
             ic.endBatchEdit()
@@ -237,14 +270,9 @@ class InputService : InputMethodService(), KeyboardActionListener, CandidateView
 
         mComposing.append(text)
         ic.setComposingText(mComposing, 1)
-        candidateView.setSuggestions(listOf(mComposing.toString()), false, false)
-
-//        ic.beginBatchEdit()
-//        if (mComposing.isNotEmpty()) {
-//            commitTyped(ic)
-//        }
-//        ic.commitText(text, 0)
-//        ic.endBatchEdit()
+        updateCandidates()
+//        spellCheckSession.getSentenceSuggestions(arrayOf(TextInfo(mComposing.toString())), 10)
+//        candidateView.setSuggestions(listOf(mComposing.toString()), false, false)
     }
 
     override fun onKey(keyCode: Int) {
@@ -252,26 +280,24 @@ class InputService : InputMethodService(), KeyboardActionListener, CandidateView
             if (mComposing.length > 1) {
                 mComposing.delete(mComposing.length-1, mComposing.length)
                 currentInputConnection.setComposingText(mComposing, 1)
-//                currentInputConnection.commitText(mComposing, 1)
                 updateCandidates()
             } else if (mComposing.isNotEmpty()) {
                 mComposing.clear()
-                currentInputConnection.commitText(mComposing, 0)
                 updateCandidates()
             } else {
                 sendDownUpKeyEvents(keyCode)
             }
         } else if (keyCode == KeyEvent.KEYCODE_ENTER) {
-            currentInputConnection.beginBatchEdit()
-//            commitTyped(currentInputConnection)
-            currentInputConnection.commitText(mComposing.reverse(), 1)
-            currentInputConnection.endBatchEdit()
-            showWindow(false)
-//            sendDownUpKeyEvents(KeyEvent.KEYCODE_ENTER)
+            currentInputConnection.commitText(mComposing, 1)
+            mComposing.clear()
+            sendDownUpKeyEvents(KeyEvent.KEYCODE_ENTER)
+            updateCandidates()
         } else if (keyCode == KeyEvent.KEYCODE_SPACE) {
             // Handle separator
             if (mComposing.isNotEmpty()) {
-                commitTyped(currentInputConnection)
+                currentInputConnection.commitText(mComposing, 1)
+                mComposing.clear()
+                updateCandidates()
             }
             sendDownUpKeyEvents(keyCode)
         }
@@ -282,22 +308,25 @@ class InputService : InputMethodService(), KeyboardActionListener, CandidateView
             currentInputConnection.commitCompletion(mCompletions[index])
             return
         }
-        currentInputConnection.beginBatchEdit()
-//        commitTyped(currentInputConnection)
-        currentInputConnection.commitText(mComposing.reverse(), 1)
-        currentInputConnection.endBatchEdit()
+        currentInputConnection.commitText(text, 1)
         mComposing.clear()
+        updateCandidates()
     }
 
-    /**
-     * Helper function to commit any text being composed in to the editor.
-     */
-    private fun commitTyped(inputConnection: InputConnection) {
-        if (mComposing.isNotEmpty()) {
-            inputConnection.commitText(mComposing.reverse(), mComposing.length)
-            mComposing.clear()
-            updateCandidates()
-        }
+    override fun onGetSentenceSuggestions(results: Array<SentenceSuggestionsInfo>) {
+        val suggesions = results.map { sentenceSuggestions ->
+            (0 until sentenceSuggestions.suggestionsCount).map { sentenceSuggestions.getSuggestionsInfoAt(it) }
+        }.flatten().map { suggestionsInfo ->
+            (0 until suggestionsInfo.suggestionsCount).map { suggestionsInfo.getSuggestionAt(it) }
+        }.flatten()
+        candidateView.setSuggestions(suggesions, false, true)
+    }
+
+    override fun onGetSuggestions(results: Array<SuggestionsInfo>) {
+        val suggesions = results.map {  suggestionsInfo ->
+            (0 until suggestionsInfo.suggestionsCount).map { suggestionsInfo.getSuggestionAt(it) }
+        }.flatten()
+        candidateView.setSuggestions(suggesions, false, true)
     }
 
     /**
@@ -308,17 +337,20 @@ class InputService : InputMethodService(), KeyboardActionListener, CandidateView
     private fun updateCandidates() {
         if (!mCompletionOn) {
             if (mComposing.isNotEmpty()) {
-                val list = ArrayList<String>()
-                list.add(mComposing.toString())
-                if (::candidateView.isInitialized) {
-                    candidateView.setSuggestions(list, false, true)
+                val searchWord = mComposing.toString()
+                val suggestions = suggestion.dictionary?.fuseQuery(searchWord)
+                val words = mutableListOf<String>()
+                for (s in suggestions?.suggestions ?: listOf()) {
+                    if (s.mWord == searchWord) {
+                        continue
+                    }
+                    words.add(s.mWord)
                 }
+                words.add(0, searchWord)
+                candidateView.setSuggestions(words, false, suggestions?.valid ?: false)
             } else {
-                if (::candidateView.isInitialized) {
-                    candidateView.setSuggestions(listOf(), false, false)
-                }
+                candidateView?.setSuggestions(listOf(), false, false)
             }
         }
-
     }
 }
