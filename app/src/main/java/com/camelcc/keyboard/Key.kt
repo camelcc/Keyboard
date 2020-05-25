@@ -96,13 +96,13 @@ abstract class Key {
     }
 }
 
-open class TextKey(var text: String) : Key() {
+open class TextKey(var keyCode: Char, var text: String = keyCode.toString()) : Key() {
     var textSize = Keyboard.theme.keyTextSize.toFloat()
     var upperSize = Keyboard.theme.keyUpperTextSize.toFloat()
     var bold = false
 
-    var superScript = ""
-    var miniKeys = listOf<String>()
+    var superScript = '\u0000'
+    var miniKeys = listOf<Char>()
     var initMiniKeyIndex = 0
 
     override fun drawContent(canvas: Canvas, paint: Paint) {
@@ -117,11 +117,11 @@ open class TextKey(var text: String) : Key() {
         if (bold) {
             paint.typeface = Typeface.DEFAULT
         }
-        if (superScript.isNotBlank()) {
+        if (superScript != '\u0000') {
             paint.textSize = upperSize
             paint.typeface = Typeface.DEFAULT_BOLD
-            canvas.drawText(superScript,
-                width - paint.measureText(superScript),
+            canvas.drawText(superScript.toString(),
+                width - paint.measureText(superScript.toString()),
                 paint.textSize, paint)
             paint.typeface = Typeface.DEFAULT
         }
@@ -143,24 +143,24 @@ open class IconKey(private val icon: Drawable): Key() {
     }
 }
 
-class PreviewTextKey(text: String): TextKey(text) {
-    constructor(text: String,
-                superScript: String,
-                miniKeys: List<String> = listOf(),
-                activeIndex: Int = 0) : this(text) {
+class PreviewTextKey(keyCode: Char): TextKey(keyCode) {
+    constructor(keyCode: Char,
+                superScript: Char,
+                miniKeys: List<Char> = listOf(),
+                activeIndex: Int = 0) : this(keyCode) {
         this.superScript = superScript
         this.miniKeys = miniKeys
         this.initMiniKeyIndex = activeIndex
     }
 }
 
-val NOT_A_KEY = PreviewTextKey("")
+val NOT_A_KEY = PreviewTextKey('\u0000')
 
 class DeleteKey(icon: Drawable): IconKey(icon)
-class NumberKey(text: String): TextKey(text)
-class SymbolKey(text: String): TextKey(text)
-class PunctuationKey(text: String): TextKey(text)
-class QWERTYKey(text: String): TextKey(text)
+class NumberKey(text: String): TextKey('\u0000', text)
+class SymbolKey(text: String): TextKey('\u0000', text)
+class PunctuationKey(text: String): TextKey('\u0000', text)
+class QWERTYKey(text: String): TextKey('\u0000', text)
 class ShiftKey(icon: Drawable): IconKey(icon)
-class SpaceKey(text: String): TextKey(text)
+class SpaceKey(text: String): TextKey(' ', text)
 class DoneKey(icon: Drawable): IconKey(icon)

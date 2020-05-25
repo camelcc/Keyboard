@@ -89,8 +89,8 @@ class KeyboardView: View {
 
         mMiniKeyboard = PopupMiniKeyboardView(context)
         mMiniKeyboard.clickListener = object : KeyboardActionListener {
-            override fun onText(text: String) {
-                mKeyboardActionListener?.onText(text)
+            override fun onChar(c: Char) {
+                mKeyboardActionListener?.onChar(c)
                 dismissPopupKeyboard()
             }
             override fun onKey(keyCode: Int) {}
@@ -110,8 +110,8 @@ class KeyboardView: View {
                 invalidateAllKeys()
             }
 
-            override fun onText(text: String) {
-                mKeyboardActionListener?.onText(text)
+            override fun onChar(c: Char) {
+                mKeyboardActionListener?.onChar(c)
             }
 
             override fun onKey(keyCode: Int) {

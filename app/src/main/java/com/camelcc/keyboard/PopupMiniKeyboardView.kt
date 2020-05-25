@@ -9,7 +9,7 @@ import android.view.View
 import android.view.ViewOutlineProvider
 
 class PopupMiniKeyboardView: View {
-    var keys: List<String> = listOf()
+    var keys: List<Char> = listOf()
     var activeIndex: Int = 0
     var currentIndex: Int = activeIndex
 
@@ -63,7 +63,7 @@ class PopupMiniKeyboardView: View {
 //        Log.d("[SK]", "[PopupMiniKeyboardView] onTouchEvent: ${ev.action.action}, ex: ${ev.x}, ey: ${ev.y}, x: $x, y: $y, kw: $keyWidth, i: $index")
 
         index = index.coerceAtMost(keys.size-1)
-        if (keys[index].isBlank()) {
+        if (keys[index] == '\u0000') {
             index = if (index - 1 >= 0) index-1 else index+1
         }
         if (index != currentIndex) {
@@ -72,7 +72,7 @@ class PopupMiniKeyboardView: View {
         }
 
         if (action == MotionEvent.ACTION_UP) {
-            clickListener?.onText(keys[index])
+            clickListener?.onChar(keys[index])
         }
         return true
     }
@@ -95,7 +95,7 @@ class PopupMiniKeyboardView: View {
         var x = .0f
         var y = .0f
         for (i in keys.indices) {
-            if (keys[i].isBlank()) {
+            if (keys[i] == '\u0000') {
                 x += keyWidth
                 continue
             }
@@ -125,7 +125,7 @@ class PopupMiniKeyboardView: View {
             paint.typeface = Typeface.DEFAULT
             paint.textSize = Keyboard.theme.miniKeyboardTextSize.toFloat()
             canvas.drawText(
-                keys[i],
+                keys[i].toString(),
                 x + keyWidth/2,
                 y + keyHeight/2-(paint.descent()+paint.ascent())/2, paint)
 

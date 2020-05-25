@@ -25,15 +25,17 @@ import kotlin.collections.ArrayList
 
 class InputService : InputMethodService(),
     KeyboardActionListener,
-    CandidateView.CandidateViewListener,
-    SpellCheckerSession.SpellCheckerSessionListener {
+    CandidateView.CandidateViewListener {
     val tag = "[SK]"
+
+    enum class InputState {
+        TYPING, FINISHED, SUGGESTED
+    }
 
     private val ioJob = Job()
     private val serviceIOScope = CoroutineScope(Dispatchers.IO + ioJob)
 
     private lateinit var inputManager: InputMethodManager
-//    private lateinit var textService: TextServicesManager
     private lateinit var suggestion: TypeSuggestion
 
     private lateinit var keyboard: Keyboard
@@ -45,14 +47,16 @@ class InputService : InputMethodService(),
     private var mCompletionOn = false
     private var mCompletions: Array<CompletionInfo> = arrayOf()
 
-//    private lateinit var spellCheckSession: SpellCheckerSession
+    private var mSelStart = 0
+    private var mSelEnd = 0
+    private var mAvoidComposingDetect = false
+    private var mInputState = InputState.FINISHED
 
     override fun onCreate() {
         super.onCreate()
         Log.i(tag, "onCreate")
 
         inputManager = getSystemService(Context.INPUT_METHOD_SERVICE) as InputMethodManager
-//        textService = getSystemService(Context.TEXT_SERVICES_MANAGER_SERVICE) as TextServicesManager
         suggestion = TypeSuggestion(serviceIOScope)
         // TODO: try catch
         suggestion.initializeDictionary(this)
@@ -105,7 +109,6 @@ class InputService : InputMethodService(),
 
         mPredictionOn = false
         mCompletionOn = false
-        mCompletions = arrayOf()
 
         when (attribute.inputType.and(InputType.TYPE_MASK_CLASS)) {
             InputType.TYPE_CLASS_TEXT -> {
@@ -115,14 +118,16 @@ class InputService : InputMethodService(),
                 // modify our behavior.
                 val variation = attribute.inputType and InputType.TYPE_MASK_VARIATION
                 if (variation == InputType.TYPE_TEXT_VARIATION_PASSWORD ||
-                    variation == InputType.TYPE_TEXT_VARIATION_VISIBLE_PASSWORD) {
+                    variation == InputType.TYPE_TEXT_VARIATION_VISIBLE_PASSWORD ||
+                    variation == InputType.TYPE_TEXT_VARIATION_WEB_PASSWORD) {
                     // Do not display predictions / what the user is typing
                     // when they are entering a password.
                     mPredictionOn = false
                 }
                 if (variation == InputType.TYPE_TEXT_VARIATION_EMAIL_ADDRESS ||
                     variation == InputType.TYPE_TEXT_VARIATION_URI ||
-                    variation == InputType.TYPE_TEXT_VARIATION_FILTER) {
+                    variation == InputType.TYPE_TEXT_VARIATION_FILTER ||
+                    variation == InputType.TYPE_TEXT_VARIATION_WEB_EMAIL_ADDRESS) {
                     // Our predictions are not useful for e-mail addresses
                     // or URIs.
                     mPredictionOn = false
@@ -144,6 +149,8 @@ class InputService : InputMethodService(),
         // says it will do.
         // TODO:
 //        mCurKeyboard.setImeOptions(getResources(), attribute.imeOptions)
+
+        updateComposingRegion(attribute.initialSelStart, attribute.initialSelEnd)
     }
 
     override fun onCreateInputView(): View {
@@ -193,8 +200,6 @@ class InputService : InputMethodService(),
         // its window.
         setCandidatesViewShown(false)
         keyboardView.closing()
-
-//        spellCheckSession.close()
     }
 
     /**
@@ -209,8 +214,12 @@ class InputService : InputMethodService(),
         super.onUpdateSelection(oldSelStart, oldSelEnd, newSelStart, newSelEnd, candidatesStart, candidatesEnd)
         // If the current selection in the text view changes, we should
         // clear whatever candidate text we have.
-        if (mComposing.isNotEmpty() && (newSelStart != candidatesEnd || newSelEnd != candidatesEnd)) {
-            mComposing.clear()
+        if (newSelStart != candidatesEnd || newSelEnd != candidatesEnd) {
+            if (mAvoidComposingDetect) {
+                mAvoidComposingDetect = false
+                return
+            }
+            updateComposingRegion(newSelStart, newSelEnd)
             updateCandidates()
         }
     }
@@ -257,49 +266,52 @@ class InputService : InputMethodService(),
         return super.onKeyDown(keyCode, event)
     }
 
-    override fun onText(text: String) {
+    // no space, must be letter or punctuation or symbols
+    override fun onChar(c: Char) {
         val ic = currentInputConnection ?: return
-        if (text.isBlank() || !(text[0] in 'a'..'z' || text[0] in 'A'..'Z')) {
-            ic.beginBatchEdit()
+
+        if (!Character.isLetter(c)) {
+            mComposing.append(c)
             ic.commitText(mComposing, 1)
             mComposing.clear()
-            ic.commitText(text, 0)
+            mAvoidComposingDetect = true
+            mInputState = InputState.FINISHED
+        } else {
+            ic.beginBatchEdit()
+            if (mInputState == InputState.SUGGESTED) {
+                ic.commitText(" ", 1)
+            }
+            mComposing.append(c)
+            ic.setComposingText(mComposing, 1)
             ic.endBatchEdit()
-            return
+            mAvoidComposingDetect = true
+            updateCandidates()
+            mInputState = InputState.TYPING
         }
-
-        mComposing.append(text)
-        ic.setComposingText(mComposing, 1)
-        updateCandidates()
-//        spellCheckSession.getSentenceSuggestions(arrayOf(TextInfo(mComposing.toString())), 10)
-//        candidateView.setSuggestions(listOf(mComposing.toString()), false, false)
     }
 
     override fun onKey(keyCode: Int) {
+        val ic = currentInputConnection ?: return
+
         if (keyCode == KeyEvent.KEYCODE_DEL) {
-            if (mComposing.length > 1) {
+            if (mComposing.isNotEmpty()) {
                 mComposing.delete(mComposing.length-1, mComposing.length)
-                currentInputConnection.setComposingText(mComposing, 1)
-                updateCandidates()
-            } else if (mComposing.isNotEmpty()) {
-                mComposing.clear()
+                ic.setComposingText(mComposing, 1)
+                mAvoidComposingDetect = true
                 updateCandidates()
             } else {
+                mAvoidComposingDetect = false
                 sendDownUpKeyEvents(keyCode)
             }
-        } else if (keyCode == KeyEvent.KEYCODE_ENTER) {
-            currentInputConnection.commitText(mComposing, 1)
+        } else if (keyCode == KeyEvent.KEYCODE_ENTER || keyCode == KeyEvent.KEYCODE_SPACE) {
+            ic.commitText(mComposing, 1)
+            mAvoidComposingDetect = true
             mComposing.clear()
-            sendDownUpKeyEvents(KeyEvent.KEYCODE_ENTER)
-            updateCandidates()
-        } else if (keyCode == KeyEvent.KEYCODE_SPACE) {
-            // Handle separator
-            if (mComposing.isNotEmpty()) {
-                currentInputConnection.commitText(mComposing, 1)
-                mComposing.clear()
-                updateCandidates()
-            }
             sendDownUpKeyEvents(keyCode)
+            if (keyCode == KeyEvent.KEYCODE_SPACE) {
+                // TODO: change to CapMode with matching mode
+            }
+            mInputState = InputState.FINISHED
         }
     }
 
@@ -309,24 +321,57 @@ class InputService : InputMethodService(),
             return
         }
         currentInputConnection.commitText(text, 1)
+        mInputState = InputState.SUGGESTED
         mComposing.clear()
+        mAvoidComposingDetect = true
         updateCandidates()
     }
 
-    override fun onGetSentenceSuggestions(results: Array<SentenceSuggestionsInfo>) {
-        val suggesions = results.map { sentenceSuggestions ->
-            (0 until sentenceSuggestions.suggestionsCount).map { sentenceSuggestions.getSuggestionsInfoAt(it) }
-        }.flatten().map { suggestionsInfo ->
-            (0 until suggestionsInfo.suggestionsCount).map { suggestionsInfo.getSuggestionAt(it) }
-        }.flatten()
-        candidateView.setSuggestions(suggesions, false, true)
-    }
-
-    override fun onGetSuggestions(results: Array<SuggestionsInfo>) {
-        val suggesions = results.map {  suggestionsInfo ->
-            (0 until suggestionsInfo.suggestionsCount).map { suggestionsInfo.getSuggestionAt(it) }
-        }.flatten()
-        candidateView.setSuggestions(suggesions, false, true)
+    private fun updateComposingRegion(selStart: Int, selEnd: Int) {
+        mComposing.clear()
+        if (currentInputConnection == null) {
+            return
+        }
+        val before = currentInputConnection.getTextBeforeCursor(48, 0)
+        val current = currentInputConnection.getSelectedText(0)
+        val after = currentInputConnection.getTextAfterCursor(48, 0)
+        if (!current.isNullOrEmpty()) {
+            mComposing.append(current)
+        }
+        if (!mPredictionOn || mCompletionOn) {
+            return
+        }
+        mInputState = if (!before.isNullOrBlank() && before[before.length-1].isLetter() && (current.isNullOrEmpty() || current[0].isLetter())) {
+            InputState.TYPING
+        } else {
+            InputState.FINISHED
+        }
+        var start = selStart
+        if (!before.isNullOrBlank()) {
+            for (i in before.indices.reversed()) {
+                if (Character.isLetter(before[i])) {
+                    mComposing.insert(0, before[i])
+                    start--
+                } else {
+                    break
+                }
+            }
+        }
+        var end = selEnd
+        if (!after.isNullOrBlank()) {
+            for (i in after.indices) {
+                if (Character.isLetter(after[i])) {
+                    mComposing.append(after[i])
+                    end++
+                } else {
+                    break
+                }
+            }
+        }
+        if (start == selStart && end == selEnd) {
+            return
+        }
+        currentInputConnection.setComposingRegion(start, end)
     }
 
     /**
@@ -335,22 +380,22 @@ class InputService : InputMethodService(),
      * candidates.
      */
     private fun updateCandidates() {
-        if (!mCompletionOn) {
-            if (mComposing.isNotEmpty()) {
-                val searchWord = mComposing.toString()
-                val suggestions = suggestion.dictionary?.fuseQuery(searchWord)
-                val words = mutableListOf<String>()
-                for (s in suggestions?.suggestions ?: listOf()) {
-                    if (s.mWord == searchWord) {
-                        continue
-                    }
-                    words.add(s.mWord)
-                }
-                words.add(0, searchWord)
-                candidateView.setSuggestions(words, false, suggestions?.valid ?: false)
-            } else {
-                candidateView?.setSuggestions(listOf(), false, false)
-            }
+        if (mComposing.isBlank()) {
+            candidateView.setSuggestions(listOf(), false, false)
         }
+        if (!mPredictionOn || mCompletionOn) {
+            return
+        }
+        val searchWord = mComposing.toString()
+        val suggestions = suggestion.dictionary?.fuseQuery(searchWord)
+        val words = mutableListOf<String>()
+        for (s in suggestions?.suggestions ?: listOf()) {
+            if (s.mWord == searchWord) {
+                continue
+            }
+            words.add(s.mWord)
+        }
+        words.add(0, searchWord)
+        candidateView.setSuggestions(words, false, suggestions?.valid ?: false)
     }
 }
