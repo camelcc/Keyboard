@@ -1,9 +1,9 @@
 package com.camelcc.keyboard
 
 import android.content.Context
-import android.content.Intent
 import android.inputmethodservice.InputMethodService
 import android.text.InputType
+import android.text.TextUtils
 import android.util.Log
 import android.view.KeyEvent
 import android.view.View
@@ -13,14 +13,9 @@ import android.view.inputmethod.CompletionInfo
 import android.view.inputmethod.EditorInfo
 import android.view.inputmethod.InputMethodManager
 import android.view.inputmethod.InputMethodSubtype
-import android.view.textservice.*
-import androidx.lifecycle.Lifecycle
-import androidx.lifecycle.LifecycleOwner
-import androidx.lifecycle.LifecycleRegistry
-import kotlinx.coroutines.*
-import java.util.*
-import java.util.stream.Stream
-import kotlin.collections.ArrayList
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
 
 
 class InputService : InputMethodService(),
@@ -47,10 +42,20 @@ class InputService : InputMethodService(),
     private var mCompletionOn = false
     private var mCompletions: Array<CompletionInfo> = arrayOf()
 
-    private var mSelStart = 0
-    private var mSelEnd = 0
-    private var mAvoidComposingDetect = false
+    private var mDeferSelectionUpdate = false
+    /*
+     * Simple state machine for input state
+     *   <--------- SPACE + chars ------------------
+     *   |                                         |
+     * TYPING ---- (candidate UI Selection) ---> SUGGESTED
+     *   |                                         |
+     *   |<-------------                           |
+     *   |           chars                    punctuation
+     * punctuation     |                           |
+     *   |----------> FINISH <----------------------
+     */
     private var mInputState = InputState.FINISHED
+    private var mSentenceBreak = true
 
     override fun onCreate() {
         super.onCreate()
@@ -150,7 +155,9 @@ class InputService : InputMethodService(),
         // TODO:
 //        mCurKeyboard.setImeOptions(getResources(), attribute.imeOptions)
 
-        updateComposingRegion(attribute.initialSelStart, attribute.initialSelEnd)
+        if (mPredictionOn && !mCompletionOn) {
+            updateComposingRegion(attribute.initialSelStart, attribute.initialSelEnd)
+        }
     }
 
     override fun onCreateInputView(): View {
@@ -180,6 +187,11 @@ class InputService : InputMethodService(),
         keyboardView.closing()
 
         setCandidatesViewShown(true)
+        if (info.initialCapsMode == TextUtils.CAP_MODE_CHARACTERS) {
+            keyboard.updateMode(3) // upper_sticky
+        } else if (info.initialCapsMode != 0) {
+            keyboard.updateMode(2)
+        }
     }
 
     /**
@@ -215,12 +227,15 @@ class InputService : InputMethodService(),
         // If the current selection in the text view changes, we should
         // clear whatever candidate text we have.
         if (newSelStart != candidatesEnd || newSelEnd != candidatesEnd) {
-            if (mAvoidComposingDetect) {
-                mAvoidComposingDetect = false
+            if (mDeferSelectionUpdate) {
+                mDeferSelectionUpdate = false
                 return
             }
-            updateComposingRegion(newSelStart, newSelEnd)
-            updateCandidates()
+
+            if (mPredictionOn && !mCompletionOn) {
+                updateComposingRegion(newSelStart, newSelEnd)
+                updateCandidates()
+            }
         }
     }
 
@@ -271,12 +286,15 @@ class InputService : InputMethodService(),
         val ic = currentInputConnection ?: return
 
         if (!Character.isLetter(c)) {
+            mSentenceBreak = c == '.' || c == '?' || c == '!'
             mComposing.append(c)
             ic.commitText(mComposing, 1)
             mComposing.clear()
-            mAvoidComposingDetect = true
+            mDeferSelectionUpdate = true
+            updateCandidates()
             mInputState = InputState.FINISHED
         } else {
+            mSentenceBreak = false
             ic.beginBatchEdit()
             if (mInputState == InputState.SUGGESTED) {
                 ic.commitText(" ", 1)
@@ -284,7 +302,7 @@ class InputService : InputMethodService(),
             mComposing.append(c)
             ic.setComposingText(mComposing, 1)
             ic.endBatchEdit()
-            mAvoidComposingDetect = true
+            mDeferSelectionUpdate = true
             updateCandidates()
             mInputState = InputState.TYPING
         }
@@ -297,20 +315,24 @@ class InputService : InputMethodService(),
             if (mComposing.isNotEmpty()) {
                 mComposing.delete(mComposing.length-1, mComposing.length)
                 ic.setComposingText(mComposing, 1)
-                mAvoidComposingDetect = true
+                mDeferSelectionUpdate = true
                 updateCandidates()
             } else {
-                mAvoidComposingDetect = false
+                mDeferSelectionUpdate = false
                 sendDownUpKeyEvents(keyCode)
             }
         } else if (keyCode == KeyEvent.KEYCODE_ENTER || keyCode == KeyEvent.KEYCODE_SPACE) {
+            if (keyCode == KeyEvent.KEYCODE_SPACE) {
+                if (mSentenceBreak) {
+                    keyboard.updateMode(2) // TODO: upper
+                }
+            }
+
             ic.commitText(mComposing, 1)
-            mAvoidComposingDetect = true
+            mDeferSelectionUpdate = true
             mComposing.clear()
             sendDownUpKeyEvents(keyCode)
-            if (keyCode == KeyEvent.KEYCODE_SPACE) {
-                // TODO: change to CapMode with matching mode
-            }
+
             mInputState = InputState.FINISHED
         }
     }
@@ -323,7 +345,7 @@ class InputService : InputMethodService(),
         currentInputConnection.commitText(text, 1)
         mInputState = InputState.SUGGESTED
         mComposing.clear()
-        mAvoidComposingDetect = true
+        mDeferSelectionUpdate = true
         updateCandidates()
     }
 
@@ -349,9 +371,10 @@ class InputService : InputMethodService(),
         var start = selStart
         if (!before.isNullOrBlank()) {
             for (i in before.indices.reversed()) {
-                if (Character.isLetter(before[i])) {
+                if (!Character.isSpaceChar(before[i])) {
                     mComposing.insert(0, before[i])
                     start--
+                    mSentenceBreak = i > 0 && (before[i-1] == '.' || before[i-1] == '?' || before[i-1] == '!')
                 } else {
                     break
                 }
@@ -360,7 +383,7 @@ class InputService : InputMethodService(),
         var end = selEnd
         if (!after.isNullOrBlank()) {
             for (i in after.indices) {
-                if (Character.isLetter(after[i])) {
+                if (!Character.isSpaceChar(after[i])) {
                     mComposing.append(after[i])
                     end++
                 } else {

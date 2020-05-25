@@ -48,6 +48,11 @@ class Keyboard {
         buildLayout()
     }
 
+    fun updateMode(m: Int) {
+        mode = m
+        buildLayout()
+    }
+
     fun getKeys(): List<Key> {
         return keys
     }
