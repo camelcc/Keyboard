@@ -3,7 +3,7 @@ package com.camelcc.keyboard
 import android.graphics.Color
 import android.graphics.drawable.ColorDrawable
 
-class KeyboardTheme {
+object KeyboardTheme {
     var background = 0xFFE8EAED.toInt()
     var paddingLeft: Int = 0.dp2px
     var paddingRight: Int = 0.dp2px

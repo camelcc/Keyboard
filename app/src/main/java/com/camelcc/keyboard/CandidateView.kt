@@ -21,17 +21,17 @@ class CandidateView: View {
     private var mFromCompletion = false
     private var mTypedWordValid = true
     private var mSuggestions = listOf<String>()
-    private var mSuggestionsTextSize = Keyboard.theme.candidateTextSize
+    private var mSuggestionsTextSize = KeyboardTheme.candidateTextSize
 
     private var mActiveIndex = -1
 
     constructor(context: Context): super(context) {
         paint.color = Color.BLACK
         paint.isAntiAlias = true
-        paint.textSize = Keyboard.theme.candidateTextSize.toFloat()
+        paint.textSize = KeyboardTheme.candidateTextSize.toFloat()
         paint.strokeWidth = .0f
         setWillNotDraw(false)
-        setPadding(Keyboard.theme.candidateViewPadding, 0, Keyboard.theme.candidateViewPadding, 0)
+        setPadding(KeyboardTheme.candidateViewPadding, 0, KeyboardTheme.candidateViewPadding, 0)
     }
 
     fun setSuggestions(suggestions: List<String>, fromCompletion: Boolean, typedWordValid: Boolean) {
@@ -45,7 +45,7 @@ class CandidateView: View {
     override fun onMeasure(widthMeasureSpec: Int, heightMeasureSpec: Int) {
         Log.d("[SK]", "CandidateView onMeasure")
 
-        contentHeight = (paddingTop + paddingBottom + paint.textSize).toInt().coerceAtLeast(Keyboard.theme.candidateHeight)
+        contentHeight = (paddingTop + paddingBottom + paint.textSize).toInt().coerceAtLeast(KeyboardTheme.candidateHeight)
         setMeasuredDimension(resolveSize(50, widthMeasureSpec),
             resolveSize(contentHeight, heightMeasureSpec))
     }
@@ -59,12 +59,12 @@ class CandidateView: View {
         val availableWidth = right-left-paddingLeft-paddingRight
         var texts = if (mSuggestions.size > 3) {
             listOf(mSuggestions[0], mSuggestions[1], mSuggestions[2]) } else mSuggestions
-        var textSize = Keyboard.theme.candidateTextSize
+        var textSize = KeyboardTheme.candidateTextSize
         while (!fit(texts, textSize, availableWidth)) {
-            if (textSize <= Keyboard.theme.candidateMinTextSize) {
-                textSize = Keyboard.theme.candidateTextSize
+            if (textSize <= KeyboardTheme.candidateMinTextSize) {
+                textSize = KeyboardTheme.candidateTextSize
                 if (texts.size == 1) {
-                    textSize = Keyboard.theme.candidateMinTextSize
+                    textSize = KeyboardTheme.candidateMinTextSize
                     var text = texts[0]
                     val i = text.indexOf("...")
                     if (i < 0) {
@@ -91,7 +91,7 @@ class CandidateView: View {
             return true
         }
         paint.textSize = textSize
-        val maxWidth = texts.map { paint.measureText(it)+2*Keyboard.theme.candidateTextPadding }.max() ?: .0f
+        val maxWidth = texts.map { paint.measureText(it)+2*KeyboardTheme.candidateTextPadding }.max() ?: .0f
         return maxWidth*texts.size + (texts.size - 1) * 1.dp2px <= width
     }
 
@@ -99,10 +99,10 @@ class CandidateView: View {
         Log.d("[SK]", "CandidateView onDraw")
         super.onDraw(canvas)
 
-        val textPadding = Keyboard.theme.candidateTextPadding
+        val textPadding = KeyboardTheme.candidateTextPadding
         val top = height-contentHeight
         paint.style = Paint.Style.FILL
-        paint.color = Keyboard.theme.background
+        paint.color = KeyboardTheme.background
         canvas.drawRect(.0f, top.toFloat(), width.toFloat(), height.toFloat(), paint)
 
         if (mSuggestions.isNullOrEmpty()) {
@@ -115,7 +115,7 @@ class CandidateView: View {
         paint.color = Color.BLACK
         for (i in mSuggestions.indices) {
             if (i == mActiveIndex) {
-                paint.color = Keyboard.theme.candidatePickedColor
+                paint.color = KeyboardTheme.candidatePickedColor
                 canvas.drawRect(x.toFloat(), top.toFloat(), (x+w).toFloat(), height.toFloat(), paint)
             }
 
@@ -130,7 +130,7 @@ class CandidateView: View {
             x += w
 
             if (i != mSuggestions.size-1) {
-                canvas.drawLine(x.toFloat(), top+Keyboard.theme.candidateVerticalPadding.toFloat(), x+1.dp2px.toFloat(), height.toFloat()-Keyboard.theme.candidateVerticalPadding, paint)
+                canvas.drawLine(x.toFloat(), top+KeyboardTheme.candidateVerticalPadding.toFloat(), x+1.dp2px.toFloat(), height.toFloat()-KeyboardTheme.candidateVerticalPadding, paint)
                 x += 1.dp2px
             }
         }

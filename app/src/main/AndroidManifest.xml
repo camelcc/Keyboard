@@ -20,6 +20,13 @@
                 android:resource="@xml/method" />
         </service>
 
+        <service android:name="com.android.inputmethod.pinyin.PinyinDecoderService">
+            <intent-filter>
+                <action android:name="com.android.inputmethod.pinyin.Decoder_Service" />
+                <category android:name="android.intent.category.DEFAULT" />
+            </intent-filter>
+        </service>
+
         <activity
             android:name=".MainActivity"
             android:label="@string/input_name">

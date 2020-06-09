@@ -25,7 +25,7 @@ abstract class Key {
 
     var edges = 0
 
-    var keyColor = Keyboard.theme.keyColor
+    var keyColor = KeyboardTheme.keyColor
     var keyPressedColor = keyColor
 
     var repeatable = false
@@ -37,17 +37,17 @@ abstract class Key {
         val style = paint.style
         val color = paint.color
         paint.style = Paint.Style.STROKE
-        paint.color = Keyboard.theme.keyBorderColor
-        paint.strokeWidth = Keyboard.theme.keyBorderWidth.toFloat()
+        paint.color = KeyboardTheme.keyBorderColor
+        paint.strokeWidth = KeyboardTheme.keyBorderWidth.toFloat()
         canvas.drawRoundRect(1.0f, 1.0f,
             width-1.0f, height+1.0f,
-            Keyboard.theme.keyBorderRadius, Keyboard.theme.keyBorderRadius, paint)
+            KeyboardTheme.keyBorderRadius, KeyboardTheme.keyBorderRadius, paint)
         paint.style = Paint.Style.FILL
         paint.color = if (pressed) keyPressedColor else keyColor
         paint.strokeWidth = .0f
         canvas.drawRoundRect(.0f, .0f,
             width, height,
-            Keyboard.theme.keyBorderRadius, Keyboard.theme.keyBorderRadius, paint)
+            KeyboardTheme.keyBorderRadius, KeyboardTheme.keyBorderRadius, paint)
         paint.style = style
         paint.color = color
 
@@ -97,8 +97,8 @@ abstract class Key {
 }
 
 open class TextKey(var keyCode: Char, var text: String = keyCode.toString()) : Key() {
-    var textSize = Keyboard.theme.keyTextSize.toFloat()
-    var upperSize = Keyboard.theme.keyUpperTextSize.toFloat()
+    var textSize = KeyboardTheme.keyTextSize.toFloat()
+    var upperSize = KeyboardTheme.keyUpperTextSize.toFloat()
     var bold = false
 
     var superScript = '\u0000'
@@ -157,6 +157,7 @@ class PreviewTextKey(keyCode: Char): TextKey(keyCode) {
 val NOT_A_KEY = PreviewTextKey('\u0000')
 
 class DeleteKey(icon: Drawable): IconKey(icon)
+class LangKey(icon: Drawable): IconKey(icon)
 class NumberKey(text: String): TextKey('\u0000', text)
 class SymbolKey(text: String): TextKey('\u0000', text)
 class PunctuationKey(text: String): TextKey('\u0000', text)
@@ -164,3 +165,4 @@ class QWERTYKey(text: String): TextKey('\u0000', text)
 class ShiftKey(icon: Drawable): IconKey(icon)
 class SpaceKey(text: String): TextKey(' ', text)
 class DoneKey(icon: Drawable): IconKey(icon)
+class HanCiKey(text: String): TextKey('\'', text)

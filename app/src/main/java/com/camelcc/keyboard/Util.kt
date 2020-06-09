@@ -15,7 +15,8 @@ val Int.action: String get() {
 }
 
 interface KeyboardActionListener {
-    fun onChar(c: Char)
+    fun onLangSwitch()
+    fun onChar(c: Char, fromPopup: Boolean = false)
     fun onKey(keyCode: Int)
 }
 

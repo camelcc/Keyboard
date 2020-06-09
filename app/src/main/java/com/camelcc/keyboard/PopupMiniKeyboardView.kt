@@ -15,7 +15,7 @@ class PopupMiniKeyboardView: View {
 
     private val singleLine: Boolean get() = keys.size <= 5
     private val keyWidth: Int get() = if (singleLine) width/keys.size else width/(keys.size/2)
-    private val keyHeight: Int get() = if (singleLine) height-Keyboard.theme.popupMarginBottom else (height-Keyboard.theme.popupMarginBottom)/2
+    private val keyHeight: Int get() = if (singleLine) height-KeyboardTheme.popupMarginBottom else (height-KeyboardTheme.popupMarginBottom)/2
 
     var clickListener: KeyboardActionListener? = null
 
@@ -89,7 +89,7 @@ class PopupMiniKeyboardView: View {
         val paint = mPaint
         // background
         paint.style = Paint.Style.FILL
-        paint.color = Keyboard.theme.popupBackground
+        paint.color = KeyboardTheme.popupBackground
         canvas.drawRect(.0f, .0f, width.toFloat(), height.toFloat(), paint)
 
         var x = .0f
@@ -110,11 +110,11 @@ class PopupMiniKeyboardView: View {
                 val color = paint.color
 
                 paint.style = Paint.Style.FILL
-                paint.color = Keyboard.theme.miniKeyboardHighlight
+                paint.color = KeyboardTheme.miniKeyboardHighlight
                 paint.strokeWidth = .0f
                 canvas.drawRoundRect(x, y,
                     x+keyWidth, y+keyHeight,
-                    Keyboard.theme.miniKeyboardHighlightRadius.toFloat(), Keyboard.theme.miniKeyboardHighlightRadius.toFloat(), paint)
+                    KeyboardTheme.miniKeyboardHighlightRadius.toFloat(), KeyboardTheme.miniKeyboardHighlightRadius.toFloat(), paint)
                 paint.style = style
                 paint.color = color
 
@@ -123,7 +123,7 @@ class PopupMiniKeyboardView: View {
                 paint.color = Color.BLACK
             }
             paint.typeface = Typeface.DEFAULT
-            paint.textSize = Keyboard.theme.miniKeyboardTextSize.toFloat()
+            paint.textSize = KeyboardTheme.miniKeyboardTextSize.toFloat()
             canvas.drawText(
                 keys[i].toString(),
                 x + keyWidth/2,
@@ -137,17 +137,17 @@ class PopupMiniKeyboardView: View {
 
     private fun buildOutlinePath(): Path {
         val outlinePath = Path()
-        outlinePath.addRoundRect(RectF(.0f, .0f, width.toFloat(), (height-Keyboard.theme.popupMarginBottom).toFloat()),
-            Keyboard.theme.popupRadius.toFloat(), Keyboard.theme.popupRadius.toFloat(), Path.Direction.CCW)
+        outlinePath.addRoundRect(RectF(.0f, .0f, width.toFloat(), (height-KeyboardTheme.popupMarginBottom).toFloat()),
+            KeyboardTheme.popupRadius.toFloat(), KeyboardTheme.popupRadius.toFloat(), Path.Direction.CCW)
 
         val dropPath = Path()
         val x = (if (singleLine) activeIndex else (if (activeIndex < keys.size/2) activeIndex else activeIndex-keys.size/2))*keyWidth*1.0f
-        val y = (height-Keyboard.theme.popupMarginBottom).toFloat()
+        val y = (height-KeyboardTheme.popupMarginBottom).toFloat()
 
-        dropPath.addRect(x, y-Keyboard.theme.popupRadius, x+keyWidth, (height-Keyboard.theme.popupRadius).toFloat(), Path.Direction.CCW)
+        dropPath.addRect(x, y-KeyboardTheme.popupRadius, x+keyWidth, (height-KeyboardTheme.popupRadius).toFloat(), Path.Direction.CCW)
 
         val dropRect = Path()
-        dropRect.addRoundRect(RectF(x, y+Keyboard.theme.popupRadius, x+keyWidth, height.toFloat()), Keyboard.theme.popupRadius.toFloat(), Keyboard.theme.popupRadius.toFloat(), Path.Direction.CCW)
+        dropRect.addRoundRect(RectF(x, y+KeyboardTheme.popupRadius, x+keyWidth, height.toFloat()), KeyboardTheme.popupRadius.toFloat(), KeyboardTheme.popupRadius.toFloat(), Path.Direction.CCW)
         dropPath.op(dropRect, Path.Op.UNION)
 
         outlinePath.op(dropPath, Path.Op.UNION)

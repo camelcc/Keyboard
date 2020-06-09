@@ -17,15 +17,15 @@ class PopupPreviewTextView : View {
     private val mPaint = Paint()
     private val ellipsis = "\u2026"
     private var ellipsisWidth = .0f
-    private val keyHeight: Int get() = height-Keyboard.theme.popupMarginBottom
+    private val keyHeight: Int get() = height-KeyboardTheme.popupMarginBottom
 
     constructor(context: Context): this(context, null)
     constructor(context: Context, attrs: AttributeSet? = null): this(context, attrs, 0)
     constructor(context: Context, attrs: AttributeSet? = null, defStyleAttr: Int): super(context, attrs, defStyleAttr) {
-        background = ColorDrawable(Keyboard.theme.popupBackground)
+        background = ColorDrawable(KeyboardTheme.popupBackground)
         outlineProvider = object: ViewOutlineProvider() {
             override fun getOutline(view: View, outline: Outline) {
-                outline.setRoundRect(0, 0, view.width, view.height, Keyboard.theme.popupRadius.toFloat())
+                outline.setRoundRect(0, 0, view.width, view.height, KeyboardTheme.popupRadius.toFloat())
             }
         }
         clipToOutline = true
@@ -36,7 +36,7 @@ class PopupPreviewTextView : View {
         mPaint.alpha = 255
         mPaint.typeface = Typeface.DEFAULT
 
-        mPaint.textSize = Keyboard.theme.popupSubscriptionSize
+        mPaint.textSize = KeyboardTheme.popupSubscriptionSize
         ellipsisWidth = mPaint.measureText(ellipsis)
     }
 
@@ -44,13 +44,13 @@ class PopupPreviewTextView : View {
         super.onDraw(canvas)
         if (key != NOT_A_KEY) {
             val paint = mPaint
-            paint.textSize = Keyboard.theme.popupTextSize
+            paint.textSize = KeyboardTheme.popupTextSize
             canvas.drawText(key.text,
                 width/2.0f,
                 keyHeight/2-(paint.descent()+paint.ascent())/2, paint)
 
             if (!key.miniKeys.isNullOrEmpty()) {
-                paint.textSize = Keyboard.theme.popupSubscriptionSize
+                paint.textSize = KeyboardTheme.popupSubscriptionSize
 
                 canvas.drawText(ellipsis,
                     width.toFloat()-ellipsisWidth,

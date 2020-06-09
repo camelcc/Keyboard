@@ -23,6 +23,11 @@ class InputService : InputMethodService(),
     CandidateView.CandidateViewListener {
     val tag = "[SK]"
 
+    enum class IME {
+        ENGLISH,
+        PINYIN
+    }
+
     enum class InputState {
         TYPING, FINISHED, SUGGESTED
     }
@@ -31,18 +36,22 @@ class InputService : InputMethodService(),
     private val serviceIOScope = CoroutineScope(Dispatchers.IO + ioJob)
 
     private lateinit var inputManager: InputMethodManager
-    private lateinit var suggestion: TypeSuggestion
 
+
+    private var imeType = IME.ENGLISH
     private lateinit var keyboard: Keyboard
     private lateinit var keyboardView: KeyboardView
+
     private lateinit var candidateView: CandidateView
 
-    private val mComposing = StringBuilder()
-    private var mPredictionOn = false
     private var mCompletionOn = false
-    private var mCompletions: Array<CompletionInfo> = arrayOf()
-
+    private var mPredictionOn = false
     private var mDeferSelectionUpdate = false
+
+    // english only
+    private lateinit var suggestion: TypeSuggestion
+    private val mComposing = StringBuilder()
+    private var mCompletions: Array<CompletionInfo> = arrayOf()
     /*
      * Simple state machine for input state
      *   <--------- SPACE + chars ------------------
@@ -78,7 +87,7 @@ class InputService : InputMethodService(),
      */
     override fun onInitializeInterface() {
         val displayContext = getDisplayContext()
-        keyboard = Keyboard(displayContext)
+        keyboard = if (imeType == IME.ENGLISH) EnglishKeyboard(displayContext) else PinyinKeyboard(displayContext)
     }
 
     /**
@@ -106,7 +115,6 @@ class InputService : InputMethodService(),
      */
     override fun onStartInput(attribute: EditorInfo, restarting: Boolean) {
         super.onStartInput(attribute, restarting)
-//        spellCheckSession = textService.newSpellCheckerSession(null, Locale.US, this, false)
 
         // Reset our state.  We want to do this even if restarting, because
         // the underlying state of the text editor could have changed in any way.
@@ -154,6 +162,7 @@ class InputService : InputMethodService(),
         // says it will do.
         // TODO:
 //        mCurKeyboard.setImeOptions(getResources(), attribute.imeOptions)
+        keyboard.buildLayout()
 
         if (mPredictionOn && !mCompletionOn) {
             updateComposingRegion(attribute.initialSelStart, attribute.initialSelEnd)
@@ -185,12 +194,14 @@ class InputService : InputMethodService(),
 
         keyboardView.setKeyboard(keyboard)
         keyboardView.closing()
-
         setCandidatesViewShown(true)
-        if (info.initialCapsMode == TextUtils.CAP_MODE_CHARACTERS) {
-            keyboard.updateMode(3) // upper_sticky
-        } else if (info.initialCapsMode != 0) {
-            keyboard.updateMode(2)
+
+        if (imeType == IME.ENGLISH) {
+            if (info.initialCapsMode == TextUtils.CAP_MODE_CHARACTERS) {
+                (keyboard as EnglishKeyboard).showStickyUpper()
+            } else if (info.initialCapsMode != 0) {
+                (keyboard as EnglishKeyboard).showUpper()
+            }
         }
     }
 
@@ -282,59 +293,67 @@ class InputService : InputMethodService(),
     }
 
     // no space, must be letter or punctuation or symbols
-    override fun onChar(c: Char) {
+    override fun onChar(c: Char, fromPopup: Boolean) {
         val ic = currentInputConnection ?: return
 
-        if (!Character.isLetter(c)) {
-            mSentenceBreak = c == '.' || c == '?' || c == '!'
-            mComposing.append(c)
-            ic.commitText(mComposing, 1)
-            mComposing.clear()
-            mDeferSelectionUpdate = true
-            updateCandidates()
-            mInputState = InputState.FINISHED
-        } else {
-            mSentenceBreak = false
-            ic.beginBatchEdit()
-            if (mInputState == InputState.SUGGESTED) {
-                ic.commitText(" ", 1)
+        if (imeType == IME.ENGLISH) {
+            if (!Character.isLetter(c)) {
+                mSentenceBreak = c == '.' || c == '?' || c == '!'
+                mComposing.append(c)
+                ic.commitText(mComposing, 1)
+                mComposing.clear()
+                mDeferSelectionUpdate = true
+                updateCandidates()
+                mInputState = InputState.FINISHED
+            } else {
+                mSentenceBreak = false
+                ic.beginBatchEdit()
+                if (mInputState == InputState.SUGGESTED) {
+                    ic.commitText(" ", 1)
+                }
+                mComposing.append(c)
+                ic.setComposingText(mComposing, 1)
+                ic.endBatchEdit()
+                mDeferSelectionUpdate = true
+                updateCandidates()
+                mInputState = InputState.TYPING
             }
-            mComposing.append(c)
-            ic.setComposingText(mComposing, 1)
-            ic.endBatchEdit()
-            mDeferSelectionUpdate = true
-            updateCandidates()
-            mInputState = InputState.TYPING
         }
     }
 
     override fun onKey(keyCode: Int) {
         val ic = currentInputConnection ?: return
 
-        if (keyCode == KeyEvent.KEYCODE_DEL) {
-            if (mComposing.isNotEmpty()) {
-                mComposing.delete(mComposing.length-1, mComposing.length)
-                ic.setComposingText(mComposing, 1)
-                mDeferSelectionUpdate = true
-                updateCandidates()
-            } else {
-                mDeferSelectionUpdate = false
-                sendDownUpKeyEvents(keyCode)
-            }
-        } else if (keyCode == KeyEvent.KEYCODE_ENTER || keyCode == KeyEvent.KEYCODE_SPACE) {
-            if (keyCode == KeyEvent.KEYCODE_SPACE) {
-                if (mSentenceBreak) {
-                    keyboard.updateMode(2) // TODO: upper
+        if (imeType == IME.ENGLISH) {
+            if (keyCode == KeyEvent.KEYCODE_DEL) {
+                if (mComposing.isNotEmpty()) {
+                    mComposing.delete(mComposing.length-1, mComposing.length)
+                    ic.setComposingText(mComposing, 1)
+                    mDeferSelectionUpdate = true
+                    updateCandidates()
+                } else {
+                    mDeferSelectionUpdate = false
+                    sendDownUpKeyEvents(keyCode)
                 }
+            } else if (keyCode == KeyEvent.KEYCODE_ENTER || keyCode == KeyEvent.KEYCODE_SPACE) {
+                if (keyCode == KeyEvent.KEYCODE_SPACE) {
+                    if (mSentenceBreak) {
+                        (keyboard as EnglishKeyboard).showUpper()
+                    }
+                }
+
+                ic.commitText(mComposing, 1)
+                mDeferSelectionUpdate = true
+                mComposing.clear()
+                sendDownUpKeyEvents(keyCode)
+
+                mInputState = InputState.FINISHED
             }
-
-            ic.commitText(mComposing, 1)
-            mDeferSelectionUpdate = true
-            mComposing.clear()
-            sendDownUpKeyEvents(keyCode)
-
-            mInputState = InputState.FINISHED
         }
+    }
+
+    override fun onLangSwitch() {
+        TODO("Not yet implemented")
     }
 
     override fun onSuggestion(text: String, index: Int, fromCompletion: Boolean) {
@@ -350,51 +369,55 @@ class InputService : InputMethodService(),
     }
 
     private fun updateComposingRegion(selStart: Int, selEnd: Int) {
-        mComposing.clear()
-        if (currentInputConnection == null) {
-            return
-        }
-        val before = currentInputConnection.getTextBeforeCursor(48, 0)
-        val current = currentInputConnection.getSelectedText(0)
-        val after = currentInputConnection.getTextAfterCursor(48, 0)
-        if (!current.isNullOrEmpty()) {
-            mComposing.append(current)
-        }
-        if (!mPredictionOn || mCompletionOn) {
-            return
-        }
-        mInputState = if (!before.isNullOrBlank() && before[before.length-1].isLetter() && (current.isNullOrEmpty() || current[0].isLetter())) {
-            InputState.TYPING
-        } else {
-            InputState.FINISHED
-        }
-        var start = selStart
-        if (!before.isNullOrBlank()) {
-            for (i in before.indices.reversed()) {
-                if (!Character.isSpaceChar(before[i])) {
-                    mComposing.insert(0, before[i])
-                    start--
-                    mSentenceBreak = i > 0 && (before[i-1] == '.' || before[i-1] == '?' || before[i-1] == '!')
+        if (imeType == IME.ENGLISH) {
+            mComposing.clear()
+            if (currentInputConnection == null) {
+                return
+            }
+            val before = currentInputConnection.getTextBeforeCursor(48, 0)
+            val current = currentInputConnection.getSelectedText(0)
+            val after = currentInputConnection.getTextAfterCursor(48, 0)
+            if (!current.isNullOrEmpty()) {
+                mComposing.append(current)
+            }
+            if (!mPredictionOn || mCompletionOn) {
+                return
+            }
+            mInputState =
+                if (!before.isNullOrBlank() && before[before.length - 1].isLetter() && (current.isNullOrEmpty() || current[0].isLetter())) {
+                    InputState.TYPING
                 } else {
-                    break
+                    InputState.FINISHED
+                }
+            var start = selStart
+            if (!before.isNullOrBlank()) {
+                for (i in before.indices.reversed()) {
+                    if (!Character.isSpaceChar(before[i])) {
+                        mComposing.insert(0, before[i])
+                        start--
+                        mSentenceBreak =
+                            i > 0 && (before[i - 1] == '.' || before[i - 1] == '?' || before[i - 1] == '!')
+                    } else {
+                        break
+                    }
                 }
             }
-        }
-        var end = selEnd
-        if (!after.isNullOrBlank()) {
-            for (i in after.indices) {
-                if (!Character.isSpaceChar(after[i])) {
-                    mComposing.append(after[i])
-                    end++
-                } else {
-                    break
+            var end = selEnd
+            if (!after.isNullOrBlank()) {
+                for (i in after.indices) {
+                    if (!Character.isSpaceChar(after[i])) {
+                        mComposing.append(after[i])
+                        end++
+                    } else {
+                        break
+                    }
                 }
             }
+            if (start == selStart && end == selEnd) {
+                return
+            }
+            currentInputConnection.setComposingRegion(start, end)
         }
-        if (start == selStart && end == selEnd) {
-            return
-        }
-        currentInputConnection.setComposingRegion(start, end)
     }
 
     /**
@@ -403,22 +426,24 @@ class InputService : InputMethodService(),
      * candidates.
      */
     private fun updateCandidates() {
-        if (mComposing.isBlank()) {
-            candidateView.setSuggestions(listOf(), false, false)
-        }
-        if (!mPredictionOn || mCompletionOn) {
-            return
-        }
-        val searchWord = mComposing.toString()
-        val suggestions = suggestion.dictionary?.fuseQuery(searchWord)
-        val words = mutableListOf<String>()
-        for (s in suggestions?.suggestions ?: listOf()) {
-            if (s.mWord == searchWord) {
-                continue
+        if (imeType == IME.ENGLISH) {
+            if (mComposing.isBlank()) {
+                candidateView.setSuggestions(listOf(), false, false)
             }
-            words.add(s.mWord)
+            if (!mPredictionOn || mCompletionOn) {
+                return
+            }
+            val searchWord = mComposing.toString()
+            val suggestions = suggestion.dictionary?.fuseQuery(searchWord)
+            val words = mutableListOf<String>()
+            for (s in suggestions?.suggestions ?: listOf()) {
+                if (s.mWord == searchWord) {
+                    continue
+                }
+                words.add(s.mWord)
+            }
+            words.add(0, searchWord)
+            candidateView.setSuggestions(words, false, suggestions?.valid ?: false)
         }
-        words.add(0, searchWord)
-        candidateView.setSuggestions(words, false, suggestions?.valid ?: false)
     }
 }
