@@ -87,6 +87,11 @@ public class PinyinIME {
         mContext.unbindService(mPinyinDecoderServiceConnection);
     }
 
+    public void reset() {
+        mImeState = ImeState.STATE_IDLE;
+        mDecInfo.reset();
+    }
+
     public void setListener(PinyinIMEListener listener) {
         mListener = listener;
     }
@@ -227,6 +232,19 @@ public class PinyinIME {
             }
             mDecInfo.reset();
             mImeState = ImeState.STATE_IDLE;
+        }
+    }
+
+    public List<String> getCandidates() {
+        mDecInfo.preparePage(0);
+        return mDecInfo.mCandidatesList;
+    }
+
+    public String getDisplayComposing() {
+        if (mImeState == ImeState.STATE_INPUT || mImeState == ImeState.STATE_COMPOSING) {
+            return mDecInfo.mComposingStrDisplay;
+        } else {
+            return "";
         }
     }
 

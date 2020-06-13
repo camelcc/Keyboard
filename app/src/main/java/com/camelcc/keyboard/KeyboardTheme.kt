@@ -48,4 +48,10 @@ object KeyboardTheme {
     val candidateTextPadding = 2.dp2px
     val candidateVerticalPadding = 8.dp2px
     val candidatePickedColor = 0xFFD2D4D7.toInt()
+
+    val pinyinComposingHeight = 24.dp2px
+    val pinyinComposingPadding = 4.dp2px
+    val pinyinTextPadding = 16.dp2px
+    val pinyinComposingTextSize = 14.dp2px.toFloat()
+    val pinyinTextSize = 18.dp2px.toFloat()
 }

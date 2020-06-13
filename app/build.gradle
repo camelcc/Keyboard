@@ -31,6 +31,10 @@ android {
             path file('src/main/cpp/CMakeLists.txt')
         }
     }
+
+    aaptOptions {
+        noCompress "dict_pinyin.dat"
+    }
 }
 
 dependencies {

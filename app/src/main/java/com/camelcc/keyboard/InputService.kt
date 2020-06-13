@@ -13,6 +13,8 @@ import android.view.inputmethod.CompletionInfo
 import android.view.inputmethod.EditorInfo
 import android.view.inputmethod.InputMethodManager
 import android.view.inputmethod.InputMethodSubtype
+import com.android.inputmethod.pinyin.PinyinIME
+//import com.camelcc.keyboard.pinyin.PinyinCandidateView
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -20,7 +22,8 @@ import kotlinx.coroutines.Job
 
 class InputService : InputMethodService(),
     KeyboardActionListener,
-    CandidateView.CandidateViewListener {
+    CandidateView.CandidateViewListener,
+    PinyinIME.PinyinIMEListener {
     val tag = "[SK]"
 
     enum class IME {
@@ -43,6 +46,7 @@ class InputService : InputMethodService(),
     private lateinit var keyboardView: KeyboardView
 
     private lateinit var candidateView: CandidateView
+//    private lateinit var pinyinCandidateView: PinyinCandidateView
 
     private var mCompletionOn = false
     private var mPredictionOn = false
@@ -66,6 +70,9 @@ class InputService : InputMethodService(),
     private var mInputState = InputState.FINISHED
     private var mSentenceBreak = true
 
+    // pinyinonly
+    private lateinit var pinyin: PinyinIME
+
     override fun onCreate() {
         super.onCreate()
         Log.i(tag, "onCreate")
@@ -74,10 +81,14 @@ class InputService : InputMethodService(),
         suggestion = TypeSuggestion(serviceIOScope)
         // TODO: try catch
         suggestion.initializeDictionary(this)
+        pinyin = PinyinIME(this)
+        pinyin.setListener(this)
+        pinyin.onCreate()
     }
 
     override fun onDestroy() {
         super.onDestroy()
+        pinyin.onDestroy()
         ioJob.cancel()
     }
 
@@ -185,6 +196,15 @@ class InputService : InputMethodService(),
         Log.i(tag, "onCreateCandidatesView")
         candidateView = CandidateView(this)
         candidateView.listener = this
+//        if (imeType == IME.ENGLISH) {
+//            return candidateView
+//        } else if (imeType == IME.PINYIN) {
+//            pinyinCandidateView =
+//                PinyinCandidateView(this)
+//            pinyinCandidateView.listener = this
+//            return pinyinCandidateView
+//        }
+//        return View(this)
         return candidateView
     }
 
@@ -215,14 +235,14 @@ class InputService : InputMethodService(),
 
         // Clear current composing text and candidates.
         mComposing.clear()
-        updateCandidates()
+//        updateCandidates()
 
         // We only hide the candidates window when finishing input on
         // a particular editor, to avoid popping the underlying application
         // up and down if the user is entering text into the bottom of
         // its window.
         setCandidatesViewShown(false)
-        keyboardView.closing()
+//        keyboardView.closing()
     }
 
     /**
@@ -318,6 +338,9 @@ class InputService : InputMethodService(),
                 updateCandidates()
                 mInputState = InputState.TYPING
             }
+        } else if (imeType == IME.PINYIN) {
+            pinyin.processText(c)
+            updateCandidates()
         }
     }
 
@@ -349,11 +372,40 @@ class InputService : InputMethodService(),
 
                 mInputState = InputState.FINISHED
             }
+        } else if (imeType == IME.PINYIN) {
+            if (!pinyin.processKeycode(keyCode)) {
+                sendDownUpKeyEvents(keyCode)
+            }
+            updateCandidates()
         }
     }
 
     override fun onLangSwitch() {
-        TODO("Not yet implemented")
+        if (imeType == IME.ENGLISH) {
+            imeType = IME.PINYIN
+            keyboard = PinyinKeyboard(getDisplayContext())
+            keyboard.buildLayout()
+            keyboardView.setKeyboard(keyboard)
+            pinyin.reset()
+            candidateView.resetDisplayStyle(true, true)
+//            pinyinCandidateView =
+//                PinyinCandidateView(getDisplayContext())
+//            pinyinCandidateView.listener = this
+//            setCandidatesView(pinyinCandidateView)
+            mComposing.clear()
+            updateCandidates()
+        } else if (imeType == IME.PINYIN) {
+            imeType = IME.ENGLISH
+            keyboard = EnglishKeyboard(getDisplayContext())
+            keyboard.buildLayout()
+            keyboardView.setKeyboard(keyboard)
+            candidateView.resetDisplayStyle(false, false)
+//            candidateView = CandidateView(getDisplayContext())
+//            candidateView.listener = this
+//            setCandidatesView(candidateView)
+            mComposing.clear()
+            updateCandidates()
+        }
     }
 
     override fun onSuggestion(text: String, index: Int, fromCompletion: Boolean) {
@@ -361,11 +413,33 @@ class InputService : InputMethodService(),
             currentInputConnection.commitCompletion(mCompletions[index])
             return
         }
-        currentInputConnection.commitText(text, 1)
-        mInputState = InputState.SUGGESTED
-        mComposing.clear()
+        if (imeType == IME.ENGLISH) {
+            currentInputConnection.commitText(text, 1)
+            mInputState = InputState.SUGGESTED
+            mComposing.clear()
+        } else if (imeType == IME.PINYIN) {
+            pinyin.onChoiceTouched(index)
+        }
+
         mDeferSelectionUpdate = true
         updateCandidates()
+    }
+
+    override fun commitText(text: String) {
+        val ic = currentInputConnection ?: return
+        ic.commitText(text, 1)
+        updateCandidates()
+    }
+
+    override fun commitCompletion(ci: CompletionInfo) {
+        val ic = currentInputConnection ?: return
+        ic.commitCompletion(ci)
+        updateCandidates()
+    }
+
+    override fun getTextBeforeCursor(length: Int): CharSequence {
+        val ic = currentInputConnection ?: return ""
+        return ic.getTextBeforeCursor(length, 0)
     }
 
     private fun updateComposingRegion(selStart: Int, selEnd: Int) {
@@ -444,6 +518,9 @@ class InputService : InputMethodService(),
             }
             words.add(0, searchWord)
             candidateView.setSuggestions(words, false, suggestions?.valid ?: false)
+        } else if (imeType == IME.PINYIN) {
+            candidateView.setSuggestions(pinyin.candidates, false, false, pinyin.displayComposing ?: "")
+//            pinyinCandidateView.setSuggestions(pinyin.candidates, false)
         }
     }
 }
