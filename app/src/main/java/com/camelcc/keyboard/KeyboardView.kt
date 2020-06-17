@@ -28,6 +28,9 @@ class KeyboardView: View {
     private var mKeyboard: Keyboard? = null
     private var mPreviewingKey: Key = NOT_A_KEY
 
+    // other popup
+    private val mCoverPopup: PopupWindow
+
     // preview popup
     private val mShowPreview = true
     private var mPreviewPopup: PopupWindow
@@ -71,6 +74,8 @@ class KeyboardView: View {
         mPaint.textSize = .0f
         mPaint.textAlign = Paint.Align.CENTER
         mPaint.alpha = 255
+
+        mCoverPopup = PopupWindow(context)
 
         mPreviewPopup = PopupWindow(context)
         mPreviewPopup.setBackgroundDrawable(null)
@@ -142,6 +147,32 @@ class KeyboardView: View {
 
     fun setKeyboardListener(listener: KeyboardActionListener?) {
         mKeyboardActionListener = listener
+    }
+
+    fun setCoverContentView(view: View) {
+        mCoverPopup.contentView = view
+    }
+
+    fun showCoverPopup() {
+        if (mCoverPopup.contentView == null) {
+            return
+        }
+        val coordinates = IntArray(2)
+        getLocationInWindow(coordinates)
+
+        if (mCoverPopup.isShowing) {
+            mCoverPopup.update(coordinates[0], coordinates[1], width, height)
+        } else {
+            mCoverPopup.width = width
+            mCoverPopup.height = height
+            mCoverPopup.showAtLocation(this, Gravity.NO_GRAVITY, coordinates[0], coordinates[1])
+        }
+    }
+
+    fun dismissCoverPopup() {
+        if (mCoverPopup.isShowing) {
+            mCoverPopup.dismiss()
+        }
     }
 
     override fun onAttachedToWindow() {
@@ -461,6 +492,10 @@ class KeyboardView: View {
     }
 
     fun closing() {
+        if (mCoverPopup.isShowing) {
+            mCoverPopup.dismiss()
+        }
+
         if (mPreviewPopup.isShowing) {
             mPreviewPopup.dismiss()
         }

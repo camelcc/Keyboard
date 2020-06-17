@@ -14,6 +14,7 @@ import android.view.inputmethod.EditorInfo
 import android.view.inputmethod.InputMethodManager
 import android.view.inputmethod.InputMethodSubtype
 import com.android.inputmethod.pinyin.PinyinIME
+import com.camelcc.keyboard.pinyin.PinyinExpandedListView
 //import com.camelcc.keyboard.pinyin.PinyinCandidateView
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -72,6 +73,7 @@ class InputService : InputMethodService(),
 
     // pinyinonly
     private lateinit var pinyin: PinyinIME
+    private lateinit var pinyinListView: PinyinExpandedListView
 
     override fun onCreate() {
         super.onCreate()
@@ -216,12 +218,18 @@ class InputService : InputMethodService(),
         keyboardView.closing()
         setCandidatesViewShown(true)
 
+        pinyinListView = PinyinExpandedListView(this)
+        keyboardView.setCoverContentView(pinyinListView)
+
         if (imeType == IME.ENGLISH) {
             if (info.initialCapsMode == TextUtils.CAP_MODE_CHARACTERS) {
                 (keyboard as EnglishKeyboard).showStickyUpper()
             } else if (info.initialCapsMode != 0) {
                 (keyboard as EnglishKeyboard).showUpper()
             }
+            candidateView.resetDisplayStyle(false, false)
+        } else {
+            candidateView.resetDisplayStyle(true, true)
         }
     }
 
@@ -409,6 +417,7 @@ class InputService : InputMethodService(),
     }
 
     override fun onSuggestion(text: String, index: Int, fromCompletion: Boolean) {
+        keyboardView.dismissCoverPopup()
         if (fromCompletion) {
             currentInputConnection.commitCompletion(mCompletions[index])
             return
@@ -423,6 +432,20 @@ class InputService : InputMethodService(),
 
         mDeferSelectionUpdate = true
         updateCandidates()
+    }
+
+    override fun onMoreExpand() {
+        if (imeType == IME.ENGLISH) {
+            return
+        }
+        keyboardView.showCoverPopup()
+    }
+
+    override fun onMoreDismiss() {
+        if (imeType == IME.ENGLISH) {
+            return
+        }
+        keyboardView.dismissCoverPopup()
     }
 
     override fun commitText(text: String) {

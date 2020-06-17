@@ -12,12 +12,15 @@ import android.view.View
 class CandidateView: View {
     interface CandidateViewListener {
         fun onSuggestion(text: String, index: Int, fromCompletion: Boolean)
+        fun onMoreDismiss()
+        fun onMoreExpand()
     }
 
     var listener: CandidateViewListener? = null
 
     private val paint: Paint = Paint()
-    private val moreDrawable: Drawable
+    private val moreExpandDrawable: Drawable
+    private val moreDismissDrawable: Drawable
 
     private var mShowComposing = false
     private var mShowDropDownAction = false
@@ -32,10 +35,13 @@ class CandidateView: View {
 
     private var mTypedWordValid = true
 
+    private var mMoreExpanded = false
+
     constructor(context: Context): super(context) {
         setBackgroundColor(Color.TRANSPARENT)
 
-        moreDrawable = context.getDrawable(R.drawable.ic_keyboard_arrow_down_24dp)!!
+        moreExpandDrawable = context.getDrawable(R.drawable.ic_keyboard_arrow_down_24dp)!!
+        moreDismissDrawable = context.getDrawable(R.drawable.ic_keyboard_arrow_up_24dp)!!
 
         paint.color = Color.BLACK
         paint.isAntiAlias = true
@@ -61,6 +67,7 @@ class CandidateView: View {
         mSuggestions = suggestions
         mTypedWordValid = typedWordValid
         mComposing = composing
+        mMoreExpanded = false
         invalidate()
         requestLayout() // relayout fake children (text) views
     }
@@ -132,7 +139,7 @@ class CandidateView: View {
             assert(pickedIndex <= mSuggestions.size)
             // leave space for more key
             if (pickedIndex < mSuggestions.size) {
-                val moreWidth = moreDrawable.intrinsicWidth + 2*KeyboardTheme.candidateTextSize
+                val moreWidth = moreExpandDrawable.intrinsicWidth + 2*KeyboardTheme.candidateTextSize
                 availableWidth -= moreWidth.toInt()
             }
             if (pickedIndex == 0 || pickedIndex == 1) { // rare case, should not happen if engine is good
@@ -239,11 +246,16 @@ class CandidateView: View {
                 }
             }
             if (mSuggestionsWidth.size < mSuggestions.size) {
-                val drawableX = (x + (width-x-moreDrawable.intrinsicWidth)/2).toFloat()
-                val drawableY = (composingHeight + (height-composingHeight-moreDrawable.intrinsicHeight)/2).toFloat()
+                val drawableX = (x + (width-x-moreExpandDrawable.intrinsicWidth)/2).toFloat()
+                val drawableY = (composingHeight + (height-composingHeight-moreExpandDrawable.intrinsicHeight)/2).toFloat()
                 canvas.translate(drawableX, drawableY)
-                moreDrawable.setBounds(0, 0, moreDrawable.intrinsicWidth, moreDrawable.intrinsicHeight)
-                moreDrawable.draw(canvas)
+                if (mMoreExpanded) {
+                    moreDismissDrawable.setBounds(0, 0, moreDismissDrawable.intrinsicWidth, moreDismissDrawable.intrinsicHeight)
+                    moreDismissDrawable.draw(canvas)
+                } else {
+                    moreExpandDrawable.setBounds(0, 0, moreExpandDrawable.intrinsicWidth, moreExpandDrawable.intrinsicHeight)
+                    moreExpandDrawable.draw(canvas)
+                }
                 canvas.translate(-drawableX, -drawableY)
             }
         }
@@ -285,9 +297,15 @@ class CandidateView: View {
             MotionEvent.ACTION_UP -> {
                 if (index == mActiveIndex) {
                     if (index == -1) {
-                        // TODO: drop down action
+                        mMoreExpanded = !mMoreExpanded
+                        if (mMoreExpanded) {
+                            listener?.onMoreExpand()
+                        } else {
+                            listener?.onMoreDismiss()
+                        }
                     } else {
                         listener?.onSuggestion(mSuggestions[index], index, mFromCompletion)
+                        mMoreExpanded = false
                     }
                 }
                 mActiveIndex = -1
