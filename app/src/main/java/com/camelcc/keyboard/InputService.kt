@@ -14,12 +14,10 @@ import android.view.inputmethod.EditorInfo
 import android.view.inputmethod.InputMethodManager
 import android.view.inputmethod.InputMethodSubtype
 import com.android.inputmethod.pinyin.PinyinIME
-import com.camelcc.keyboard.pinyin.PinyinExpandedListView
-//import com.camelcc.keyboard.pinyin.PinyinCandidateView
+import com.camelcc.keyboard.pinyin.PinyinDetailsAdapter
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
-
 
 class InputService : InputMethodService(),
     KeyboardActionListener,
@@ -73,7 +71,6 @@ class InputService : InputMethodService(),
 
     // pinyinonly
     private lateinit var pinyin: PinyinIME
-    private lateinit var pinyinListView: PinyinExpandedListView
 
     override fun onCreate() {
         super.onCreate()
@@ -190,6 +187,8 @@ class InputService : InputMethodService(),
             ViewGroup.LayoutParams.WRAP_CONTENT)
         inputView.setKeyboard(keyboard)
         inputView.setKeyboardListener(this)
+        inputView.setSuggestionListener(this)
+        inputView.updateCandidateDecodingInfo(pinyin.decInfo)
         keyboardView = inputView
         return inputView
     }
@@ -217,9 +216,6 @@ class InputService : InputMethodService(),
         keyboardView.setKeyboard(keyboard)
         keyboardView.closing()
         setCandidatesViewShown(true)
-
-        pinyinListView = PinyinExpandedListView(this)
-        keyboardView.setCoverContentView(pinyinListView)
 
         if (imeType == IME.ENGLISH) {
             if (info.initialCapsMode == TextUtils.CAP_MODE_CHARACTERS) {

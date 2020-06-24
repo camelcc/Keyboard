@@ -6,8 +6,11 @@ import android.graphics.Color
 import android.graphics.Paint
 import android.graphics.drawable.Drawable
 import android.util.Log
+import android.view.Gravity
 import android.view.MotionEvent
 import android.view.View
+import android.widget.PopupWindow
+import com.camelcc.keyboard.pinyin.ComposingTextView
 
 class CandidateView: View {
     interface CandidateViewListener {
@@ -25,7 +28,8 @@ class CandidateView: View {
     private var mShowComposing = false
     private var mShowDropDownAction = false
 
-    private var mComposing = ""
+    private val mComposingPopup: PopupWindow
+    private val mComposingView: ComposingTextView
 
     private var mActiveIndex = -1
     private var mFromCompletion = false
@@ -49,6 +53,14 @@ class CandidateView: View {
         paint.strokeWidth = .0f
         setWillNotDraw(false)
 //        setPadding(KeyboardTheme.candidateViewPadding, 0, KeyboardTheme.candidateViewPadding, 0)
+
+        mComposingView = ComposingTextView(context)
+        mComposingPopup = PopupWindow(context)
+        mComposingPopup.isClippingEnabled = false
+        mComposingPopup.setBackgroundDrawable(null)
+        mComposingPopup.inputMethodMode = PopupWindow.INPUT_METHOD_NOT_NEEDED
+        mComposingPopup.isTouchable = false
+        mComposingPopup.contentView = mComposingView
     }
 
     fun resetDisplayStyle(showComposing: Boolean, showDropDownAction: Boolean) {
@@ -57,31 +69,49 @@ class CandidateView: View {
 
         mActiveIndex = -1
         mSuggestions = listOf()
-        mComposing = ""
         mSuggestionsWidth = mutableListOf()
         invalidate()
+
+        if (!mShowComposing) {
+            mComposingPopup.dismiss()
+        }
     }
 
     fun setSuggestions(suggestions: List<String>, fromCompletion: Boolean, typedWordValid: Boolean, composing: String = "") {
         mFromCompletion = fromCompletion
         mSuggestions = suggestions
         mTypedWordValid = typedWordValid
-        mComposing = composing
         mMoreExpanded = false
+
+        mComposingView.setComposing(composing)
+
         invalidate()
         requestLayout() // relayout fake children (text) views
+
+        if (mShowComposing) {
+            mComposingPopup.height = mComposingView.calculatedHeight
+            mComposingPopup.width = mComposingView.calculatedWidth
+
+            val coordinates = IntArray(2)
+            getLocationInWindow(coordinates)
+            if (mComposingPopup.isShowing) {
+                mComposingPopup.update(coordinates[0], coordinates[1]-mComposingPopup.height, mComposingPopup.width, mComposingPopup.height)
+            } else {
+                mComposingPopup.showAtLocation(this, Gravity.LEFT or Gravity.TOP, coordinates[0], coordinates[1]-mComposingPopup.height)
+            }
+        } else {
+            mComposingPopup.dismiss()
+        }
     }
 
     override fun onMeasure(widthMeasureSpec: Int, heightMeasureSpec: Int) {
         Log.d("[SK]", "CandidateView onMeasure")
 
-        val composingHeight = (2*KeyboardTheme.pinyinComposingPadding +
-                KeyboardTheme.pinyinComposingTextSize).toInt().coerceAtLeast(KeyboardTheme.pinyinComposingHeight)
         val candidateHeight = (paddingTop + paddingBottom +
                 2*KeyboardTheme.candidateTextPadding +
                 KeyboardTheme.candidateTextSize).toInt().coerceAtLeast(KeyboardTheme.candidateHeight)
         setMeasuredDimension(resolveSize(50, widthMeasureSpec),
-            resolveSize(composingHeight + candidateHeight, heightMeasureSpec))
+            resolveSize(candidateHeight, heightMeasureSpec))
     }
 
     override fun onLayout(changed: Boolean, left: Int, top: Int, right: Int, bottom: Int) {
@@ -184,21 +214,8 @@ class CandidateView: View {
         super.onDraw(canvas)
 
         paint.style = Paint.Style.FILL
-        val composingHeight = (2*KeyboardTheme.pinyinComposingPadding +
-                KeyboardTheme.pinyinComposingTextSize).toInt().coerceAtLeast(KeyboardTheme.pinyinComposingHeight)
-
-        if (mShowComposing && mComposing.isNotBlank()) {
-            paint.color = KeyboardTheme.background
-            canvas.drawRect(.0f, .0f, 2*KeyboardTheme.pinyinComposingPadding + paint.measureText(mComposing), composingHeight.toFloat(), paint)
-
-            paint.color = Color.BLACK
-            paint.textSize = KeyboardTheme.pinyinComposingTextSize
-            canvas.drawText(mComposing, KeyboardTheme.pinyinComposingPadding.toFloat(),
-                composingHeight/2-(paint.descent()+paint.ascent())/2, paint)
-        }
-
         paint.color = KeyboardTheme.background
-        canvas.drawRect(.0f, composingHeight.toFloat(), width.toFloat(), height.toFloat(), paint)
+        canvas.drawRect(.0f, .0f, width.toFloat(), height.toFloat(), paint)
         if (mSuggestions.isNullOrEmpty()) {
             return
         }
@@ -211,17 +228,16 @@ class CandidateView: View {
             for (i in mSuggestions.indices) {
                 if (i == mActiveIndex) {
                     paint.color = KeyboardTheme.candidatePickedColor
-                    canvas.drawRect(x.toFloat(), composingHeight.toFloat(), (x+w).toFloat(), height.toFloat(), paint)
+                    canvas.drawRect(x.toFloat(), .0f, (x+w).toFloat(), height.toFloat(), paint)
                 }
 
                 paint.color = Color.BLACK
                 val tw = paint.measureText(mSuggestions[i])
-                canvas.drawText(mSuggestions[i], x + w/2.0f-tw/2.0f,
-                    composingHeight + (height-composingHeight)/2-(paint.descent()+paint.ascent())/2, paint)
+                canvas.drawText(mSuggestions[i], x + w/2.0f-tw/2.0f, height/2-(paint.descent()+paint.ascent())/2, paint)
                 x += w
 
                 if (i != mSuggestions.size-1) {
-                    canvas.drawLine(x.toFloat(), composingHeight+KeyboardTheme.candidateVerticalPadding.toFloat(), x+1.dp2px.toFloat(), height.toFloat()-KeyboardTheme.candidateVerticalPadding, paint)
+                    canvas.drawLine(x.toFloat(), KeyboardTheme.candidateVerticalPadding.toFloat(), x+1.dp2px.toFloat(), height.toFloat()-KeyboardTheme.candidateVerticalPadding, paint)
                     x += 1.dp2px
                 }
             }
@@ -230,24 +246,24 @@ class CandidateView: View {
             for (i in mSuggestionsWidth.indices) {
                 if (i == mActiveIndex) {
                     paint.color = KeyboardTheme.candidatePickedColor
-                    canvas.drawRect(x.toFloat(), composingHeight.toFloat(), (x+mSuggestionsWidth[i]).toFloat(), height.toFloat(), paint)
+                    canvas.drawRect(x.toFloat(), .0f, (x+mSuggestionsWidth[i]).toFloat(), height.toFloat(), paint)
                 }
 
                 paint.color = Color.BLACK
                 val tw = paint.measureText(mSuggestions[i]).coerceAtMost(mSuggestionsWidth[i].toFloat())
-                val ty = composingHeight + (height-composingHeight)/2 - (paint.descent()+paint.ascent())/2
+                val ty = height/2 - (paint.descent()+paint.ascent())/2
                 canvas.drawText(mSuggestions[i], x + mSuggestionsWidth[i]/2.0f-tw/2.0f, ty, paint)
 
                 x += mSuggestionsWidth[i]
 
                 if (i != mSuggestions.size-1) {
-                    canvas.drawLine(x.toFloat(), composingHeight + KeyboardTheme.candidateVerticalPadding.toFloat(), x+1.dp2px.toFloat(), height.toFloat()- KeyboardTheme.candidateVerticalPadding, paint)
+                    canvas.drawLine(x.toFloat(), KeyboardTheme.candidateVerticalPadding.toFloat(), x+1.dp2px.toFloat(), height.toFloat()- KeyboardTheme.candidateVerticalPadding, paint)
                     x += 1.dp2px
                 }
             }
             if (mSuggestionsWidth.size < mSuggestions.size) {
                 val drawableX = (x + (width-x-moreExpandDrawable.intrinsicWidth)/2).toFloat()
-                val drawableY = (composingHeight + (height-composingHeight-moreExpandDrawable.intrinsicHeight)/2).toFloat()
+                val drawableY = ((height-moreExpandDrawable.intrinsicHeight)/2).toFloat()
                 canvas.translate(drawableX, drawableY)
                 if (mMoreExpanded) {
                     moreDismissDrawable.setBounds(0, 0, moreDismissDrawable.intrinsicWidth, moreDismissDrawable.intrinsicHeight)
@@ -262,8 +278,6 @@ class CandidateView: View {
     }
 
     override fun onTouchEvent(ev: MotionEvent): Boolean {
-        val composingHeight = (2*KeyboardTheme.pinyinComposingPadding +
-                KeyboardTheme.pinyinComposingTextSize).toInt().coerceAtLeast(KeyboardTheme.pinyinComposingHeight)
         val x = ev.x
         val y = ev.y
         var index = -1
@@ -284,11 +298,6 @@ class CandidateView: View {
 
         when (ev.action) {
             MotionEvent.ACTION_DOWN -> {
-                // do not handle first wrong place click
-                if (y < composingHeight) {
-                    return false
-                }
-
                 if (mActiveIndex != index) {
                     mActiveIndex = index
                     invalidate()

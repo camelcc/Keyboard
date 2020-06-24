@@ -53,5 +53,5 @@ object KeyboardTheme {
     val pinyinComposingPadding = 4.dp2px
     val pinyinTextPadding = 16.dp2px
     val pinyinComposingTextSize = 14.dp2px.toFloat()
-    val pinyinTextSize = 18.dp2px.toFloat()
+    val pinyinTextSize = 20.dp2px.toFloat()
 }

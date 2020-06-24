@@ -9,7 +9,13 @@ import android.util.AttributeSet
 import android.util.Log
 import android.view.*
 import android.widget.PopupWindow
+import androidx.recyclerview.widget.GridLayoutManager
+import androidx.recyclerview.widget.RecyclerView
+import com.android.inputmethod.pinyin.PinyinIME
+import com.camelcc.keyboard.pinyin.PinyinDetailsAdapter
+import kotlin.math.ceil
 import kotlin.math.max
+import kotlin.math.roundToInt
 
 class KeyboardView: View {
     companion object {
@@ -24,12 +30,15 @@ class KeyboardView: View {
     }
     private val LONGPRESS_TIMEOUT = ViewConfiguration.getLongPressTimeout().toLong()
 
+    private var mSuggestionListener: CandidateView.CandidateViewListener? = null
     private var mKeyboardActionListener: KeyboardActionListener? = null
     private var mKeyboard: Keyboard? = null
     private var mPreviewingKey: Key = NOT_A_KEY
 
     // other popup
-    private val mCoverPopup: PopupWindow
+    private val mCandidateDetailPopupWindow: PopupWindow
+    private val mCandidateDetailView: RecyclerView
+    private val mCandidateDetailViewAdapter: PinyinDetailsAdapter
 
     // preview popup
     private val mShowPreview = true
@@ -75,7 +84,25 @@ class KeyboardView: View {
         mPaint.textAlign = Paint.Align.CENTER
         mPaint.alpha = 255
 
-        mCoverPopup = PopupWindow(context)
+
+        val gridLayoutManager = GridLayoutManager(context, 128)
+        mCandidateDetailViewAdapter = PinyinDetailsAdapter()
+        mCandidateDetailViewAdapter.listener = mSuggestionListener
+        mCandidateDetailView = RecyclerView(context)
+        mCandidateDetailView.setBackgroundColor(KeyboardTheme.background)
+        mCandidateDetailView.layoutManager = gridLayoutManager
+        mCandidateDetailView.setHasFixedSize(true)
+        mCandidateDetailView.adapter = mCandidateDetailViewAdapter
+        mCandidateDetailPopupWindow = PopupWindow(context)
+        mCandidateDetailPopupWindow.isClippingEnabled = false
+        mCandidateDetailPopupWindow.setBackgroundDrawable(null)
+        mCandidateDetailPopupWindow.inputMethodMode = PopupWindow.INPUT_METHOD_NOT_NEEDED
+        mCandidateDetailPopupWindow.contentView = mCandidateDetailView
+        gridLayoutManager.spanSizeLookup = object : GridLayoutManager.SpanSizeLookup() {
+            override fun getSpanSize(position: Int): Int {
+                return calculateSpan(mCandidateDetailViewAdapter.getCalculatedWidth(position))
+            }
+        }
 
         mPreviewPopup = PopupWindow(context)
         mPreviewPopup.setBackgroundDrawable(null)
@@ -149,29 +176,33 @@ class KeyboardView: View {
         mKeyboardActionListener = listener
     }
 
-    fun setCoverContentView(view: View) {
-        mCoverPopup.contentView = view
+    fun setSuggestionListener(listener: CandidateView.CandidateViewListener?) {
+        mSuggestionListener = listener
+        mCandidateDetailViewAdapter.listener = mSuggestionListener
+    }
+
+    fun updateCandidateDecodingInfo(decodingInfo: PinyinIME.DecodingInfo) {
+        mCandidateDetailViewAdapter.setDecodingInfo(decodingInfo)
     }
 
     fun showCoverPopup() {
-        if (mCoverPopup.contentView == null) {
-            return
-        }
+        mCandidateDetailViewAdapter.notifyDataSetChanged()
+
         val coordinates = IntArray(2)
         getLocationInWindow(coordinates)
 
-        if (mCoverPopup.isShowing) {
-            mCoverPopup.update(coordinates[0], coordinates[1], width, height)
+        if (mCandidateDetailPopupWindow.isShowing) {
+            mCandidateDetailPopupWindow.update(coordinates[0], coordinates[1], width, height)
         } else {
-            mCoverPopup.width = width
-            mCoverPopup.height = height
-            mCoverPopup.showAtLocation(this, Gravity.NO_GRAVITY, coordinates[0], coordinates[1])
+            mCandidateDetailPopupWindow.width = width
+            mCandidateDetailPopupWindow.height = height
+            mCandidateDetailPopupWindow.showAtLocation(this, Gravity.NO_GRAVITY, coordinates[0], coordinates[1])
         }
     }
 
     fun dismissCoverPopup() {
-        if (mCoverPopup.isShowing) {
-            mCoverPopup.dismiss()
+        if (mCandidateDetailPopupWindow.isShowing) {
+            mCandidateDetailPopupWindow.dismiss()
         }
     }
 
@@ -235,6 +266,16 @@ class KeyboardView: View {
             onBufferDraw()
         }
         canvas.drawBitmap(mBuffer!!, .0f, .0f, null)
+    }
+
+    private fun calculateSpan(textWidth: Int): Int {
+        val w = width
+        val h = height
+        return if (w < h) { // portrait, 8
+            (ceil(textWidth*1.0/(w/8)).toInt()*8).coerceAtMost(128)
+        } else { // landscape, 16
+            (ceil(textWidth*1.0/(w/16)).toInt()*16).coerceAtMost(128)
+        }
     }
 
     private fun onBufferDraw() {
@@ -492,8 +533,8 @@ class KeyboardView: View {
     }
 
     fun closing() {
-        if (mCoverPopup.isShowing) {
-            mCoverPopup.dismiss()
+        if (mCandidateDetailPopupWindow.isShowing) {
+            mCandidateDetailPopupWindow.dismiss()
         }
 
         if (mPreviewPopup.isShowing) {

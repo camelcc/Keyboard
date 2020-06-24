@@ -235,6 +235,10 @@ public class PinyinIME {
         }
     }
 
+    public DecodingInfo getDecInfo() {
+        return mDecInfo;
+    }
+
     public List<String> getCandidates() {
         mDecInfo.preparePage(0);
         return mDecInfo.mCandidatesList;
