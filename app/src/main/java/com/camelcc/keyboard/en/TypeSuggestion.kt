@@ -1,4 +1,4 @@
-package com.camelcc.keyboard
+package com.camelcc.keyboard.en
 
 import android.content.Context
 import android.util.Log
@@ -18,7 +18,9 @@ class TypeSuggestion(private val scope: CoroutineScope) {
     fun initializeDictionary(context: Context) {
         try {
             scope.launch {
-                val target = File(context.filesDir, DICT_FILE_NAME)
+                val target = File(context.filesDir,
+                    DICT_FILE_NAME
+                )
                 // TODO: validation check
                 if (target.exists()) {
                     dictionary = BinaryDictionary(target)

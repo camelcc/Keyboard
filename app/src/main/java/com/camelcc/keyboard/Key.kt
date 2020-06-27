@@ -1,14 +1,9 @@
 package com.camelcc.keyboard
 
 import android.graphics.Canvas
-import android.graphics.Color
 import android.graphics.Paint
 import android.graphics.Typeface
 import android.graphics.drawable.Drawable
-import android.graphics.drawable.Icon
-import android.util.Log
-import java.lang.StringBuilder
-import kotlin.math.min
 
 abstract class Key {
     companion object {

@@ -47,7 +47,10 @@ class PinyinDetailsAdapter :
     fun setDecodingInfo(di: PinyinIME.DecodingInfo) {
         paint.textSize = KeyboardTheme.candidateTextSize
         decodingInfo = di
-        notifyDataSetChanged()
+    }
+
+    fun loadMore() {
+        decodingInfo.getCandiagtesForCache()
     }
 
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): ViewHolder {

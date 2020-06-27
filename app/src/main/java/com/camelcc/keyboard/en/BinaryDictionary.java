@@ -1,4 +1,4 @@
-package com.camelcc.keyboard;
+package com.camelcc.keyboard.en;
 
 import android.text.TextUtils;
 import android.util.Log;

@@ -104,13 +104,29 @@ class CandidateView: View {
         }
     }
 
+    override fun onSizeChanged(w: Int, h: Int, oldw: Int, oldh: Int) {
+        super.onSizeChanged(w, h, oldw, oldh)
+        closing()
+    }
+
+    override fun onDetachedFromWindow() {
+        super.onDetachedFromWindow()
+        closing()
+    }
+
+    private fun closing() {
+        if (mComposingPopup.isShowing) {
+            mComposingPopup.dismiss()
+        }
+    }
+
     override fun onMeasure(widthMeasureSpec: Int, heightMeasureSpec: Int) {
         Log.d("[SK]", "CandidateView onMeasure")
 
         val candidateHeight = (paddingTop + paddingBottom +
                 2*KeyboardTheme.candidateTextPadding +
                 KeyboardTheme.candidateTextSize).toInt().coerceAtLeast(KeyboardTheme.candidateHeight)
-        setMeasuredDimension(resolveSize(50, widthMeasureSpec),
+        setMeasuredDimension(MeasureSpec.getSize(widthMeasureSpec),
             resolveSize(candidateHeight, heightMeasureSpec))
     }
 

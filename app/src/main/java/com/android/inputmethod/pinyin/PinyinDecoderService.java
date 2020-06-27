@@ -29,7 +29,6 @@ import android.app.Service;
 import android.content.Intent;
 import android.content.res.AssetFileDescriptor;
 import android.os.IBinder;
-import android.os.RemoteException;
 import android.util.Log;
 
 /**

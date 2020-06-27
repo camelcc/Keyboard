@@ -15,7 +15,7 @@ import com.android.inputmethod.pinyin.PinyinIME
 import com.camelcc.keyboard.pinyin.PinyinDetailsAdapter
 import kotlin.math.ceil
 import kotlin.math.max
-import kotlin.math.roundToInt
+import kotlin.math.min
 
 class KeyboardView: View {
     companion object {
@@ -29,6 +29,8 @@ class KeyboardView: View {
         const val DELAY_AFTER_PREVIEW = 70L
     }
     private val LONGPRESS_TIMEOUT = ViewConfiguration.getLongPressTimeout().toLong()
+
+    private val displayWidth: Int
 
     private var mSuggestionListener: CandidateView.CandidateViewListener? = null
     private var mKeyboardActionListener: KeyboardActionListener? = null
@@ -79,6 +81,10 @@ class KeyboardView: View {
     constructor(context: Context): this(context, null)
     constructor(context: Context, attrs: AttributeSet? = null): this(context, attrs, 0)
     constructor(context: Context, attrs: AttributeSet? = null, defStyleAttr: Int): super(context, attrs, defStyleAttr) {
+        val dm = context.resources.displayMetrics
+        val dw = min(dm.widthPixels, dm.heightPixels)
+        displayWidth = dw
+
         mPaint.isAntiAlias = true
         mPaint.textSize = .0f
         mPaint.textAlign = Paint.Align.CENTER
@@ -103,6 +109,21 @@ class KeyboardView: View {
                 return calculateSpan(mCandidateDetailViewAdapter.getCalculatedWidth(position))
             }
         }
+        mCandidateDetailView.addOnScrollListener(object: RecyclerView.OnScrollListener() {
+            override fun onScrolled(recyclerView: RecyclerView, dx: Int, dy: Int) {
+                if (dy > 0) {
+                    val visible = gridLayoutManager.childCount
+                    val total = gridLayoutManager.itemCount
+                    val first = gridLayoutManager.findFirstVisibleItemPosition()
+                    if (first + visible >= total - 10) { // some buffer
+                        mCandidateDetailView.post {
+                            mCandidateDetailViewAdapter.loadMore()
+                            mCandidateDetailViewAdapter.notifyDataSetChanged()
+                        }
+                    }
+                }
+            }
+        })
 
         mPreviewPopup = PopupWindow(context)
         mPreviewPopup.setBackgroundDrawable(null)
@@ -183,6 +204,7 @@ class KeyboardView: View {
 
     fun updateCandidateDecodingInfo(decodingInfo: PinyinIME.DecodingInfo) {
         mCandidateDetailViewAdapter.setDecodingInfo(decodingInfo)
+        mCandidateDetailViewAdapter.notifyDataSetChanged()
     }
 
     fun showCoverPopup() {
@@ -269,12 +291,10 @@ class KeyboardView: View {
     }
 
     private fun calculateSpan(textWidth: Int): Int {
-        val w = width
-        val h = height
-        return if (w < h) { // portrait, 8
-            (ceil(textWidth*1.0/(w/8)).toInt()*8).coerceAtMost(128)
-        } else { // landscape, 16
-            (ceil(textWidth*1.0/(w/16)).toInt()*16).coerceAtMost(128)
+        return if (width <= displayWidth) { // portrait
+            (ceil(textWidth*1.0/(width/8)).toInt()*16).coerceAtMost(128)
+        } else {
+            (ceil(textWidth*1.0/(width/16)).toInt()*8).coerceAtMost(128)
         }
     }
 

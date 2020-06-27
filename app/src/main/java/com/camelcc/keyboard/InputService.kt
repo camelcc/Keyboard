@@ -14,7 +14,7 @@ import android.view.inputmethod.EditorInfo
 import android.view.inputmethod.InputMethodManager
 import android.view.inputmethod.InputMethodSubtype
 import com.android.inputmethod.pinyin.PinyinIME
-import com.camelcc.keyboard.pinyin.PinyinDetailsAdapter
+import com.camelcc.keyboard.en.TypeSuggestion
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -196,6 +196,9 @@ class InputService : InputMethodService(),
     override fun onCreateCandidatesView(): View {
         Log.i(tag, "onCreateCandidatesView")
         candidateView = CandidateView(this)
+        candidateView.layoutParams = ViewGroup.LayoutParams(
+            ViewGroup.LayoutParams.MATCH_PARENT,
+            ViewGroup.LayoutParams.WRAP_CONTENT)
         candidateView.listener = this
 //        if (imeType == IME.ENGLISH) {
 //            return candidateView

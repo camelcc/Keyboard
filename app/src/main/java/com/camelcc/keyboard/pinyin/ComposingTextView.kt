@@ -40,7 +40,6 @@ class ComposingTextView : View {
     }
 
     override fun onDraw(canvas: Canvas) {
-//        canvas.drawRect(.0f, .0f, width.toFloat(), height.toFloat(), paint)
         canvas.drawText(mComposing, KeyboardTheme.pinyinComposingPadding.toFloat(),
                 height/2-(paint.descent()+paint.ascent())/2, paint)
     }
