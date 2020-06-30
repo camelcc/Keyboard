@@ -52,7 +52,6 @@ class CandidateView: View {
         paint.textSize = KeyboardTheme.candidateTextSize
         paint.strokeWidth = .0f
         setWillNotDraw(false)
-//        setPadding(KeyboardTheme.candidateViewPadding, 0, KeyboardTheme.candidateViewPadding, 0)
 
         mComposingView = ComposingTextView(context)
         mComposingPopup = PopupWindow(context)

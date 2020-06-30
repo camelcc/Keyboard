@@ -681,7 +681,6 @@ public class PinyinIME {
         }
 
         public void getCandiagtesForCache() {
-            Log.e("TTT", "pinyin ime load more item");
             int fetchStart = mCandidatesList.size();
             int fetchSize = mTotalChoicesNum - fetchStart;
             if (fetchSize > MAX_PAGE_SIZE_DISPLAY) {

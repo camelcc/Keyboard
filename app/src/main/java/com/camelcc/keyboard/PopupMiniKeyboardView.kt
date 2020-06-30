@@ -60,7 +60,6 @@ class PopupMiniKeyboardView: View {
         if (!singleLine && y >= height/2) {
             index += keys.size/2
         }
-//        Log.d("[SK]", "[PopupMiniKeyboardView] onTouchEvent: ${ev.action.action}, ex: ${ev.x}, ey: ${ev.y}, x: $x, y: $y, kw: $keyWidth, i: $index")
 
         index = index.coerceAtMost(keys.size-1)
         if (keys[index] == '\u0000') {

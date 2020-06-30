@@ -45,7 +45,6 @@ class InputService : InputMethodService(),
     private lateinit var keyboardView: KeyboardView
 
     private lateinit var candidateView: CandidateView
-//    private lateinit var pinyinCandidateView: PinyinCandidateView
 
     private var mCompletionOn = false
     private var mPredictionOn = false
@@ -126,11 +125,13 @@ class InputService : InputMethodService(),
     override fun onStartInput(attribute: EditorInfo, restarting: Boolean) {
         super.onStartInput(attribute, restarting)
 
+        Log.i("[SK]", "[IME] onStartInput $restarting")
+
         // Reset our state.  We want to do this even if restarting, because
         // the underlying state of the text editor could have changed in any way.
         mComposing.clear()
 
-        mPredictionOn = false
+        mPredictionOn = true
         mCompletionOn = false
 
         when (attribute.inputType.and(InputType.TYPE_MASK_CLASS)) {
@@ -148,8 +149,6 @@ class InputService : InputMethodService(),
                     mPredictionOn = false
                 }
                 if (variation == InputType.TYPE_TEXT_VARIATION_EMAIL_ADDRESS ||
-                    variation == InputType.TYPE_TEXT_VARIATION_URI ||
-                    variation == InputType.TYPE_TEXT_VARIATION_FILTER ||
                     variation == InputType.TYPE_TEXT_VARIATION_WEB_EMAIL_ADDRESS) {
                     // Our predictions are not useful for e-mail addresses
                     // or URIs.
@@ -200,15 +199,6 @@ class InputService : InputMethodService(),
             ViewGroup.LayoutParams.MATCH_PARENT,
             ViewGroup.LayoutParams.WRAP_CONTENT)
         candidateView.listener = this
-//        if (imeType == IME.ENGLISH) {
-//            return candidateView
-//        } else if (imeType == IME.PINYIN) {
-//            pinyinCandidateView =
-//                PinyinCandidateView(this)
-//            pinyinCandidateView.listener = this
-//            return pinyinCandidateView
-//        }
-//        return View(this)
         return candidateView
     }
 
@@ -230,6 +220,7 @@ class InputService : InputMethodService(),
         } else {
             candidateView.resetDisplayStyle(true, true)
         }
+        updateCandidates()
     }
 
     /**
@@ -242,7 +233,6 @@ class InputService : InputMethodService(),
 
         // Clear current composing text and candidates.
         mComposing.clear()
-//        updateCandidates()
 
         // We only hide the candidates window when finishing input on
         // a particular editor, to avoid popping the underlying application
@@ -395,10 +385,6 @@ class InputService : InputMethodService(),
             keyboardView.setKeyboard(keyboard)
             pinyin.reset()
             candidateView.resetDisplayStyle(true, true)
-//            pinyinCandidateView =
-//                PinyinCandidateView(getDisplayContext())
-//            pinyinCandidateView.listener = this
-//            setCandidatesView(pinyinCandidateView)
             mComposing.clear()
             updateCandidates()
         } else if (imeType == IME.PINYIN) {
@@ -407,9 +393,6 @@ class InputService : InputMethodService(),
             keyboard.buildLayout()
             keyboardView.setKeyboard(keyboard)
             candidateView.resetDisplayStyle(false, false)
-//            candidateView = CandidateView(getDisplayContext())
-//            candidateView.listener = this
-//            setCandidatesView(candidateView)
             mComposing.clear()
             updateCandidates()
         }
@@ -542,7 +525,6 @@ class InputService : InputMethodService(),
             candidateView.setSuggestions(words, false, suggestions?.valid ?: false)
         } else if (imeType == IME.PINYIN) {
             candidateView.setSuggestions(pinyin.candidates, false, false, pinyin.displayComposing ?: "")
-//            pinyinCandidateView.setSuggestions(pinyin.candidates, false)
         }
     }
 }
