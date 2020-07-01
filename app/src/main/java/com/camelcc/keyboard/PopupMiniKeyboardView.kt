@@ -12,12 +12,11 @@ class PopupMiniKeyboardView: View {
     var keys: List<Char> = listOf()
     var activeIndex: Int = 0
     var currentIndex: Int = activeIndex
+    var listener: KeyboardListener? = null
 
     private val singleLine: Boolean get() = keys.size <= 5
     private val keyWidth: Int get() = if (singleLine) width/keys.size else width/(keys.size/2)
     private val keyHeight: Int get() = if (singleLine) height-KeyboardTheme.popupMarginBottom else (height-KeyboardTheme.popupMarginBottom)/2
-
-    var clickListener: KeyboardActionListener? = null
 
     private val mPaint = Paint()
     private var mOutlinePath = Path()
@@ -71,7 +70,7 @@ class PopupMiniKeyboardView: View {
         }
 
         if (action == MotionEvent.ACTION_UP) {
-            clickListener?.onChar(keys[index])
+            listener?.onKeyboardChar(keys[index])
         }
         return true
     }

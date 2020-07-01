@@ -9,10 +9,15 @@ import com.camelcc.keyboard.KeyboardTheme
 
 class ComposingTextView : View {
     private val paint: Paint = Paint()
-    private var mComposing = ""
+
+    var composing: String = ""
+        set(value) {
+            field = value
+            requestLayout()
+        }
 
     val calculatedWidth: Int
-        get() = (2*KeyboardTheme.pinyinComposingPadding + paint.measureText(mComposing)).toInt()
+        get() = (2*KeyboardTheme.pinyinComposingPadding + paint.measureText(composing)).toInt()
     val calculatedHeight: Int
         get() = (2*KeyboardTheme.pinyinComposingPadding +
                 KeyboardTheme.pinyinComposingTextSize).toInt().coerceAtLeast(KeyboardTheme.pinyinComposingHeight)
@@ -27,20 +32,12 @@ class ComposingTextView : View {
         setWillNotDraw(false)
     }
 
-    fun setComposing(composing: String) {
-        mComposing = composing
-        requestLayout()
-    }
-
     override fun onMeasure(widthMeasureSpec: Int, heightMeasureSpec: Int) {
-        val height = (2*KeyboardTheme.pinyinComposingPadding +
-                KeyboardTheme.pinyinComposingTextSize).toInt().coerceAtLeast(KeyboardTheme.pinyinComposingHeight)
-        val width = 2*KeyboardTheme.pinyinComposingPadding + paint.measureText(mComposing)
-        setMeasuredDimension(width.toInt(), height)
+        setMeasuredDimension(calculatedWidth, calculatedHeight)
     }
 
     override fun onDraw(canvas: Canvas) {
-        canvas.drawText(mComposing, KeyboardTheme.pinyinComposingPadding.toFloat(),
+        canvas.drawText(composing, KeyboardTheme.pinyinComposingPadding.toFloat(),
                 height/2-(paint.descent()+paint.ascent())/2, paint)
     }
 }

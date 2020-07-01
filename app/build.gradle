@@ -33,7 +33,7 @@ android {
     }
 
     aaptOptions {
-        noCompress "dict_pinyin.dat"
+        noCompress "dict_pinyin.dat", "wordlist.dict"
     }
 }
 

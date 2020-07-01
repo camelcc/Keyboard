@@ -235,13 +235,13 @@ public class PinyinIME {
         }
     }
 
-    public DecodingInfo getDecInfo() {
-        return mDecInfo;
-    }
-
     public List<String> getCandidates() {
         mDecInfo.preparePage(0);
         return mDecInfo.mCandidatesList;
+    }
+
+    public void loadMoreCandidates() {
+        mDecInfo.getCandidatesForCache();
     }
 
     public String getDisplayComposing() {
@@ -680,7 +680,7 @@ public class PinyinIME {
             return mCandidatesList.get(candId);
         }
 
-        public void getCandiagtesForCache() {
+        public void getCandidatesForCache() {
             int fetchStart = mCandidatesList.size();
             int fetchSize = mTotalChoicesNum - fetchStart;
             if (fetchSize > MAX_PAGE_SIZE_DISPLAY) {
@@ -746,7 +746,7 @@ public class PinyinIME {
             }
 
             // Try to get more items from engine
-            getCandiagtesForCache();
+            getCandidatesForCache();
 
             // Try to find if there are available new items to display.
             // If no new item, return false;

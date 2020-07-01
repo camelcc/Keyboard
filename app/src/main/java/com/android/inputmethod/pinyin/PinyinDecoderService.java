@@ -123,14 +123,16 @@ public class PinyinDecoderService extends Service {
         return true;
     }
 
-    private void initPinyinEngine() {
+    private void initPinyinEngine() throws IOException {
         byte usr_dict[];
         usr_dict = new byte[MAX_PATH_FILE_LENGTH];
 
         // Here is how we open a built-in dictionary for access through
         // a file descriptor...
-        AssetFileDescriptor afd = getResources().openRawResourceFd(
-                R.raw.dict_pinyin);
+        AssetFileDescriptor afd = getAssets().openFd("dict_pinyin.dat");
+//        AssetFileDescriptor afd = getResources().openRawResourceFd(
+//            R.raw.dict_pinyin);
+
         Log
             .i("foo", "Dict: start=" + afd.getStartOffset()
                 + ", length=" + afd.getLength() + ", fd="
@@ -153,11 +155,11 @@ public class PinyinDecoderService extends Service {
         // created.
         try {
             openFileOutput("dummy", 0).close();
+
+            initPinyinEngine();
         } catch (FileNotFoundException e) {
         } catch (IOException e) {
         }
-
-        initPinyinEngine();
     }
 
     @Override

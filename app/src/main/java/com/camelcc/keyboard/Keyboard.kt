@@ -41,7 +41,7 @@ abstract class Keyboard(private val context: Context) {
         layout.layout(width, height)
         height = layout.height
         keyHeight = layout.keyHeight
-        keyboardListener?.onLayoutChanged()
+        keyboardListener?.onKeyboardChanged()
     }
 
     abstract fun buildLayoutForMode()
@@ -372,19 +372,19 @@ class EnglishKeyboard(private val context: Context): Keyboard(context) {
             }
             is DeleteKey -> {
                 Log.i("[SK]", "[Keyboard] delete")
-                keyboardListener?.onKey(KeyEvent.KEYCODE_DEL)
+                keyboardListener?.onKeyboardKeyCode(KeyEvent.KEYCODE_DEL)
             }
             is SpaceKey -> {
                 Log.i("[SK]", "[Keyboard] space")
-                keyboardListener?.onKey(KeyEvent.KEYCODE_SPACE)
+                keyboardListener?.onKeyboardKeyCode(KeyEvent.KEYCODE_SPACE)
             }
             is DoneKey -> {
                 Log.i("[SK]", "[Keyboard] done")
-                keyboardListener?.onKey(KeyEvent.KEYCODE_ENTER)
+                keyboardListener?.onKeyboardKeyCode(KeyEvent.KEYCODE_ENTER)
             }
             is LangKey -> {
                 Log.i("[SK]", "[Keyboard] lang switch")
-                keyboardListener?.onSwitchLang()
+                keyboardListener?.onLangSwitch()
             }
             else -> {
                 if (mode == UPPER) {
@@ -393,7 +393,7 @@ class EnglishKeyboard(private val context: Context): Keyboard(context) {
                 }
 
                 if (key is TextKey) {
-                    keyboardListener?.onChar(key.keyCode)
+                    keyboardListener?.onKeyboardChar(key.keyCode)
                 }
             }
         }
@@ -690,23 +690,23 @@ class PinyinKeyboard(private val context: Context): Keyboard(context) {
             }
             is DeleteKey -> {
                 Log.i("[SK]", "[Keyboard] delete")
-                keyboardListener?.onKey(KeyEvent.KEYCODE_DEL)
+                keyboardListener?.onKeyboardKeyCode(KeyEvent.KEYCODE_DEL)
             }
             is SpaceKey -> {
                 Log.i("[SK]", "[Keyboard] space")
-                keyboardListener?.onKey(KeyEvent.KEYCODE_SPACE)
+                keyboardListener?.onKeyboardKeyCode(KeyEvent.KEYCODE_SPACE)
             }
             is DoneKey -> {
                 Log.i("[SK]", "[Keyboard] done")
-                keyboardListener?.onKey(KeyEvent.KEYCODE_ENTER)
+                keyboardListener?.onKeyboardKeyCode(KeyEvent.KEYCODE_ENTER)
             }
             is LangKey -> {
                 Log.i("[SK]", "[Keyboard] lang switch")
-                keyboardListener?.onSwitchLang()
+                keyboardListener?.onLangSwitch()
             }
             else -> {
                 if (key is TextKey) {
-                    keyboardListener?.onChar(key.keyCode)
+                    keyboardListener?.onKeyboardChar(key.keyCode)
                 }
             }
         }
@@ -718,13 +718,6 @@ class PinyinKeyboard(private val context: Context): Keyboard(context) {
     override fun onDoubleClick(key: Key): Boolean {
         return false
     }
-}
-
-interface KeyboardListener {
-    fun onSwitchLang()
-    fun onLayoutChanged()
-    fun onChar(c: Char)
-    fun onKey(keyCode: Int)
 }
 
 class QWERTYLayout {

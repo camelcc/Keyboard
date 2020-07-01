@@ -13,13 +13,7 @@ import android.widget.PopupWindow
 import com.camelcc.keyboard.pinyin.ComposingTextView
 
 class CandidateView: View {
-    interface CandidateViewListener {
-        fun onSuggestion(text: String, index: Int, fromCompletion: Boolean)
-        fun onMoreDismiss()
-        fun onMoreExpand()
-    }
-
-    var listener: CandidateViewListener? = null
+    var listener: KeyboardListener? = null
 
     private val paint: Paint = Paint()
     private val moreExpandDrawable: Drawable
@@ -82,7 +76,7 @@ class CandidateView: View {
         mTypedWordValid = typedWordValid
         mMoreExpanded = false
 
-        mComposingView.setComposing(composing)
+        mComposingView.composing = composing
 
         invalidate()
         requestLayout() // relayout fake children (text) views
@@ -96,7 +90,7 @@ class CandidateView: View {
             if (mComposingPopup.isShowing) {
                 mComposingPopup.update(coordinates[0], coordinates[1]-mComposingPopup.height, mComposingPopup.width, mComposingPopup.height)
             } else {
-                mComposingPopup.showAtLocation(this, Gravity.LEFT or Gravity.TOP, coordinates[0], coordinates[1]-mComposingPopup.height)
+                mComposingPopup.showAtLocation(this, Gravity.START or Gravity.TOP, coordinates[0], coordinates[1]-mComposingPopup.height)
             }
         } else {
             mComposingPopup.dismiss()
@@ -323,12 +317,15 @@ class CandidateView: View {
                     if (index == -1) {
                         mMoreExpanded = !mMoreExpanded
                         if (mMoreExpanded) {
-                            listener?.onMoreExpand()
+                            listener?.showMoreCandidates()
+//                            listener?.onMoreExpand()
                         } else {
-                            listener?.onMoreDismiss()
+                            listener?.dismissMoreCandidates()
+//                            listener?.onMoreDismiss()
                         }
                     } else {
-                        listener?.onSuggestion(mSuggestions[index], index, mFromCompletion)
+                        listener?.onCandidate(mSuggestions[index], index, mFromCompletion)
+//                        listener?.onSuggestion(mSuggestions[index], index, mFromCompletion)
                         mMoreExpanded = false
                     }
                 }

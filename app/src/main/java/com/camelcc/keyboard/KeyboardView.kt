@@ -11,7 +11,6 @@ import android.view.*
 import android.widget.PopupWindow
 import androidx.recyclerview.widget.GridLayoutManager
 import androidx.recyclerview.widget.RecyclerView
-import com.android.inputmethod.pinyin.PinyinIME
 import com.camelcc.keyboard.pinyin.PinyinDetailsAdapter
 import kotlin.math.ceil
 import kotlin.math.max
@@ -28,16 +27,22 @@ class KeyboardView: View {
         const val DELAY_BEFORE_PREVIEW = 0L
         const val DELAY_AFTER_PREVIEW = 70L
     }
+
+    var listener: KeyboardListener? = null
+        set(value) {
+            field = value
+            mCandidateDetailViewAdapter.listener = value
+            mKeyboard?.keyboardListener = value
+        }
+
     private val LONGPRESS_TIMEOUT = ViewConfiguration.getLongPressTimeout().toLong()
 
     private val displayWidth: Int
 
-    private var mSuggestionListener: CandidateView.CandidateViewListener? = null
-    private var mKeyboardActionListener: KeyboardActionListener? = null
     private var mKeyboard: Keyboard? = null
     private var mPreviewingKey: Key = NOT_A_KEY
 
-    // other popup
+    // candidates popup
     private val mCandidateDetailPopupWindow: PopupWindow
     private val mCandidateDetailView: RecyclerView
     private val mCandidateDetailViewAdapter: PinyinDetailsAdapter
@@ -93,7 +98,6 @@ class KeyboardView: View {
 
         val gridLayoutManager = GridLayoutManager(context, 128)
         mCandidateDetailViewAdapter = PinyinDetailsAdapter()
-        mCandidateDetailViewAdapter.listener = mSuggestionListener
         mCandidateDetailView = RecyclerView(context)
         mCandidateDetailView.setBackgroundColor(KeyboardTheme.background)
         mCandidateDetailView.layoutManager = gridLayoutManager
@@ -117,7 +121,8 @@ class KeyboardView: View {
                     val first = gridLayoutManager.findFirstVisibleItemPosition()
                     if (first + visible >= total - 10) { // some buffer
                         mCandidateDetailView.post {
-                            mCandidateDetailViewAdapter.loadMore()
+                            // TODO: do this in IO thread
+                            mCandidateDetailViewAdapter.loadMoreCandidates()
                             mCandidateDetailViewAdapter.notifyDataSetChanged()
                         }
                     }
@@ -141,16 +146,24 @@ class KeyboardView: View {
         mMiniKeyboardPopup.isTouchable = false
 
         mMiniKeyboard = PopupMiniKeyboardView(context)
-        mMiniKeyboard.clickListener = object : KeyboardActionListener {
-            override fun onChar(c: Char, fromPopup: Boolean) {
-                mKeyboardActionListener?.onChar(c, true)
+        mMiniKeyboard.listener = object : KeyboardListener {
+            override fun onKeyboardChar(c: Char, fromPopup: Boolean) {
+                listener?.onKeyboardChar(c, true)
                 dismissPopupKeyboard()
             }
 
-            override fun onKey(keyCode: Int) {}
             override fun onLangSwitch() {}
+            override fun onKeyboardChanged() {}
+            override fun onKeyboardKeyCode(keyCode: Int) {}
+            override fun onCandidate(text: String, index: Int, fromCompletion: Boolean) {}
+            override fun showMoreCandidates() {}
+            override fun dismissMoreCandidates() {}
         }
         mMiniKeyboardPopup.contentView = mMiniKeyboard
+    }
+
+    fun getCandidatesAdapter(): PinyinDetailsAdapter {
+        return mCandidateDetailViewAdapter
     }
 
     fun setKeyboard(keyboard: Keyboard) {
@@ -160,23 +173,7 @@ class KeyboardView: View {
         // Remove any pending messages
         removeMessages()
         mKeyboard = keyboard
-        keyboard.keyboardListener = object : KeyboardListener {
-            override fun onSwitchLang() {
-                mKeyboardActionListener?.onLangSwitch()
-            }
-
-            override fun onLayoutChanged() {
-                invalidateAllKeys()
-            }
-
-            override fun onChar(c: Char) {
-                mKeyboardActionListener?.onChar(c)
-            }
-
-            override fun onKey(keyCode: Int) {
-                mKeyboardActionListener?.onKey(keyCode)
-            }
-        }
+        keyboard.keyboardListener = listener
         background = ColorDrawable(KeyboardTheme.background)
         requestLayout()
         // Hint to reallocate the buffer if the size changed
@@ -191,20 +188,6 @@ class KeyboardView: View {
         mDirtyRect.union(0, 0, width, height)
         mDrawPending = true
         invalidate()
-    }
-
-    fun setKeyboardListener(listener: KeyboardActionListener?) {
-        mKeyboardActionListener = listener
-    }
-
-    fun setSuggestionListener(listener: CandidateView.CandidateViewListener?) {
-        mSuggestionListener = listener
-        mCandidateDetailViewAdapter.listener = mSuggestionListener
-    }
-
-    fun updateCandidateDecodingInfo(decodingInfo: PinyinIME.DecodingInfo) {
-        mCandidateDetailViewAdapter.setDecodingInfo(decodingInfo)
-        mCandidateDetailViewAdapter.notifyDataSetChanged()
     }
 
     fun showCoverPopup() {
@@ -383,6 +366,16 @@ class KeyboardView: View {
         }
         mOldPointerCount = pointerCount
         return result
+    }
+
+    private val Int.action: String get() {
+        return when (this) {
+            0 -> "DOWN"
+            1 -> "UP"
+            2 -> "MOVE"
+            3 -> "CANCEL"
+            else -> "OTHER"
+        }
     }
 
     private fun onModifiedTouchEvent(ev: MotionEvent, possiblePoly: Boolean): Boolean {

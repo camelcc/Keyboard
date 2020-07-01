@@ -1,10 +1,15 @@
 package com.camelcc.keyboard.en;
 
+import android.content.Context;
+import android.content.res.AssetFileDescriptor;
 import android.text.TextUtils;
 import android.util.Log;
 
+import java.io.ByteArrayInputStream;
 import java.io.File;
+import java.io.FileDescriptor;
 import java.io.IOException;
+import java.io.InputStream;
 import java.nio.file.Files;
 import java.util.*;
 import java.util.stream.Collectors;
@@ -342,10 +347,24 @@ public class BinaryDictionary {
 
     private byte[] data;
 
-    public BinaryDictionary(File dictionary) throws IOException, DictionaryInvalidFormatException {
-        data = Files.readAllBytes(dictionary.toPath());
+    public BinaryDictionary(Context context) throws IOException, DictionaryInvalidFormatException {
+        AssetFileDescriptor fd = context.getAssets().openFd("wordlist.dict");
+        long len = fd.getLength();
+        if (len < 0 || len > Integer.MAX_VALUE-8) {
+            throw new IOException("invalid dictionary asset");
+        }
+
+        data = new byte[(int)len];
+        try (InputStream fis = fd.createInputStream()) {
+            fis.read(data);
+        }
         parseHeader(data);
     }
+
+//    public BinaryDictionary(File dictionary) throws IOException, DictionaryInvalidFormatException {
+//        data = Files.readAllBytes(dictionary.toPath());
+//        parseHeader(data);
+//    }
 
     private static void parseHeader(byte[] buffer) throws DictionaryInvalidFormatException {
         if (buffer[0] != (byte)(0xFF & (MAGIC_NUMBER >> 24)) ||

@@ -1,10 +1,12 @@
 package com.camelcc.keyboard
 
 import android.content.Context
+import android.content.res.Resources
 import android.inputmethodservice.InputMethodService
 import android.text.InputType
 import android.text.TextUtils
 import android.util.Log
+import android.util.TypedValue
 import android.view.KeyEvent
 import android.view.View
 import android.view.ViewGroup
@@ -14,14 +16,28 @@ import android.view.inputmethod.EditorInfo
 import android.view.inputmethod.InputMethodManager
 import android.view.inputmethod.InputMethodSubtype
 import com.android.inputmethod.pinyin.PinyinIME
-import com.camelcc.keyboard.en.TypeSuggestion
+import com.camelcc.keyboard.en.BinaryDictionary
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 
+interface KeyboardListener {
+    fun onLangSwitch()
+
+    fun onKeyboardChanged()
+
+    fun onKeyboardChar(c: Char, fromPopup: Boolean = false)
+    fun onKeyboardKeyCode(keyCode: Int)
+
+    fun onCandidate(text: String, index: Int, fromCompletion: Boolean)
+    fun showMoreCandidates()
+    fun dismissMoreCandidates()
+}
+
+val Int.dp2px: Int get() = (TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_DIP, this.toFloat(), Resources.getSystem().displayMetrics)).toInt()
+
 class InputService : InputMethodService(),
-    KeyboardActionListener,
-    CandidateView.CandidateViewListener,
+    KeyboardListener,
     PinyinIME.PinyinIMEListener {
     val tag = "[SK]"
 
@@ -35,7 +51,6 @@ class InputService : InputMethodService(),
     }
 
     private val ioJob = Job()
-    private val serviceIOScope = CoroutineScope(Dispatchers.IO + ioJob)
 
     private lateinit var inputManager: InputMethodManager
 
@@ -51,7 +66,7 @@ class InputService : InputMethodService(),
     private var mDeferSelectionUpdate = false
 
     // english only
-    private lateinit var suggestion: TypeSuggestion
+    private lateinit var enIME: BinaryDictionary
     private val mComposing = StringBuilder()
     private var mCompletions: Array<CompletionInfo> = arrayOf()
     /*
@@ -76,9 +91,11 @@ class InputService : InputMethodService(),
         Log.i(tag, "onCreate")
 
         inputManager = getSystemService(Context.INPUT_METHOD_SERVICE) as InputMethodManager
-        suggestion = TypeSuggestion(serviceIOScope)
+//        suggestion = TypeSuggestion(serviceIOScope)
         // TODO: try catch
-        suggestion.initializeDictionary(this)
+//        suggestion.initializeDictionary(this)
+        enIME = BinaryDictionary(this)
+
         pinyin = PinyinIME(this)
         pinyin.setListener(this)
         pinyin.onCreate()
@@ -185,9 +202,13 @@ class InputService : InputMethodService(),
             ViewGroup.LayoutParams.MATCH_PARENT,
             ViewGroup.LayoutParams.WRAP_CONTENT)
         inputView.setKeyboard(keyboard)
-        inputView.setKeyboardListener(this)
-        inputView.setSuggestionListener(this)
-        inputView.updateCandidateDecodingInfo(pinyin.decInfo)
+//        inputView.setKeyboardListener(this)
+//        inputView.setSuggestionListener(this)
+        inputView.getCandidatesAdapter().pinyinIME = pinyin
+//        inputView.getCandidatesAdapter().listener = this
+        inputView.getCandidatesAdapter().notifyDataSetChanged()
+
+        inputView.listener = this
         keyboardView = inputView
         return inputView
     }
@@ -299,7 +320,7 @@ class InputService : InputMethodService(),
             // composing text for the user, we want to modify that instead
             // of let the application to the delete itself.
             if (mComposing.isNotEmpty()) {
-                onKey(KeyEvent.KEYCODE_DEL)
+                onKeyboardKeyCode(KeyEvent.KEYCODE_DEL)
                 return true
             }
         } else if (keyCode == KeyEvent.KEYCODE_ENTER) {
@@ -310,7 +331,7 @@ class InputService : InputMethodService(),
     }
 
     // no space, must be letter or punctuation or symbols
-    override fun onChar(c: Char, fromPopup: Boolean) {
+    override fun onKeyboardChar(c: Char, fromPopup: Boolean) {
         val ic = currentInputConnection ?: return
 
         if (imeType == IME.ENGLISH) {
@@ -341,7 +362,7 @@ class InputService : InputMethodService(),
         }
     }
 
-    override fun onKey(keyCode: Int) {
+    override fun onKeyboardKeyCode(keyCode: Int) {
         val ic = currentInputConnection ?: return
 
         if (imeType == IME.ENGLISH) {
@@ -398,7 +419,11 @@ class InputService : InputMethodService(),
         }
     }
 
-    override fun onSuggestion(text: String, index: Int, fromCompletion: Boolean) {
+    override fun onKeyboardChanged() {
+        keyboardView.invalidateAllKeys()
+    }
+
+    override fun onCandidate(text: String, index: Int, fromCompletion: Boolean) {
         keyboardView.dismissCoverPopup()
         if (fromCompletion) {
             currentInputConnection.commitCompletion(mCompletions[index])
@@ -416,14 +441,14 @@ class InputService : InputMethodService(),
         updateCandidates()
     }
 
-    override fun onMoreExpand() {
+    override fun showMoreCandidates() {
         if (imeType == IME.ENGLISH) {
             return
         }
         keyboardView.showCoverPopup()
     }
 
-    override fun onMoreDismiss() {
+    override fun dismissMoreCandidates() {
         if (imeType == IME.ENGLISH) {
             return
         }
@@ -513,7 +538,7 @@ class InputService : InputMethodService(),
                 return
             }
             val searchWord = mComposing.toString()
-            val suggestions = suggestion.dictionary?.fuseQuery(searchWord)
+            val suggestions = enIME.fuseQuery(searchWord)
             val words = mutableListOf<String>()
             for (s in suggestions?.suggestions ?: listOf()) {
                 if (s.mWord == searchWord) {
