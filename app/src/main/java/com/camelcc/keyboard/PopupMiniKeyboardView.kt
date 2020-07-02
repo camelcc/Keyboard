@@ -3,7 +3,6 @@ package com.camelcc.keyboard
 import android.content.Context
 import android.graphics.*
 import android.util.AttributeSet
-import android.util.Log
 import android.view.MotionEvent
 import android.view.View
 import android.view.ViewOutlineProvider
@@ -18,13 +17,13 @@ class PopupMiniKeyboardView: View {
     private val keyWidth: Int get() = if (singleLine) width/keys.size else width/(keys.size/2)
     private val keyHeight: Int get() = if (singleLine) height-KeyboardTheme.popupMarginBottom else (height-KeyboardTheme.popupMarginBottom)/2
 
-    private val mPaint = Paint()
-    private var mOutlinePath = Path()
+    private val paint = Paint()
+    private var outlinePath = Path()
 
     private val outline = object : ViewOutlineProvider() {
         override fun getOutline(view: View, outline: Outline) {
-            mOutlinePath = buildOutlinePath()
-            outline.setConvexPath(mOutlinePath)
+            outlinePath = buildOutlinePath()
+            outline.setConvexPath(outlinePath)
         }
     }
 
@@ -34,12 +33,12 @@ class PopupMiniKeyboardView: View {
         outlineProvider = outline
         clipToOutline = true
 
-        mPaint.isAntiAlias = true
-        mPaint.textSize = .0f
-        mPaint.color = Color.BLACK
-        mPaint.textAlign = Paint.Align.CENTER
-        mPaint.alpha = 255
-        mPaint.typeface = Typeface.DEFAULT
+        paint.isAntiAlias = true
+        paint.textSize = .0f
+        paint.color = Color.BLACK
+        paint.textAlign = Paint.Align.CENTER
+        paint.alpha = 255
+        paint.typeface = Typeface.DEFAULT
     }
 
     override fun onTouchEvent(ev: MotionEvent): Boolean {
@@ -49,7 +48,6 @@ class PopupMiniKeyboardView: View {
         }
 
         if (keyWidth == 0) {
-            Log.e("[SK]", "[PopupMiniKeyboardView] keyWidth is 0")
             return true
         }
 
@@ -77,14 +75,14 @@ class PopupMiniKeyboardView: View {
 
     override fun onSizeChanged(w: Int, h: Int, oldw: Int, oldh: Int) {
         super.onSizeChanged(w, h, oldw, oldh)
-        mOutlinePath = buildOutlinePath()
+        outlinePath = buildOutlinePath()
     }
 
     override fun onDraw(canvas: Canvas) {
         canvas.save()
-        canvas.clipPath(mOutlinePath)
+        canvas.clipPath(outlinePath)
 
-        val paint = mPaint
+        val paint = paint
         // background
         paint.style = Paint.Style.FILL
         paint.color = KeyboardTheme.popupBackground

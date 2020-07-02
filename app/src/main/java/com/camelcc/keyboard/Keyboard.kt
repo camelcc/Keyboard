@@ -6,7 +6,7 @@ import android.view.KeyEvent
 import kotlin.math.max
 import kotlin.math.min
 
-abstract class Keyboard(private val context: Context) {
+abstract class Keyboard(context: Context) {
     companion object {
         const val NORMAL = 1
         const val UPPER = 2
@@ -49,7 +49,6 @@ abstract class Keyboard(private val context: Context) {
     abstract fun onClick(key: Key)
 
     fun resize(w: Int, h: Int) {
-        Log.i("[SK]", "[Keyboard] resize w: $w, h: $h")
         layout.layout(w, h)
         width = layout.width
         height = layout.height
@@ -140,7 +139,7 @@ class EnglishKeyboard(private val context: Context): Keyboard(context) {
         delete.keyPressedColor = KeyboardTheme.keyControlPressedBackground
         val number = NumberKey("?123")
         number.keyColor = KeyboardTheme.keyControlBackground
-        number.textSize = 18.dp2px.toFloat()
+        number.textSize = KeyboardTheme.keyControlTextSize
         number.bold = true
         number.keyPressedColor = KeyboardTheme.keyControlPressedBackground
         val emoji = PreviewTextKey(',')
@@ -205,7 +204,7 @@ class EnglishKeyboard(private val context: Context): Keyboard(context) {
         val symbol = SymbolKey("=\\<")
         symbol.keyColor = KeyboardTheme.keyControlBackground
         symbol.keyPressedColor = KeyboardTheme.keyControlPressedBackground
-        symbol.textSize = 18.dp2px.toFloat()
+        symbol.textSize = KeyboardTheme.keyControlTextSize
         symbol.bold = true
         val asterisk = PreviewTextKey('*', '\u0000', listOf('\u2605', '\u2020', '\u2021'), 1)
         val quote = PreviewTextKey('"', '\u0000', listOf('\u201E', '\u201C', '\u201D', '\u00AB', '\u00BB'), 2)
@@ -222,7 +221,7 @@ class EnglishKeyboard(private val context: Context): Keyboard(context) {
         val char = QWERTYKey("ABC")
         char.keyColor = KeyboardTheme.keyControlBackground
         char.keyPressedColor = KeyboardTheme.keyControlPressedBackground
-        char.textSize = 18.dp2px.toFloat()
+        char.textSize = KeyboardTheme.keyControlTextSize
         char.bold = true
         val comma = PreviewTextKey(',')
         comma.keyColor = KeyboardTheme.keyControlBackground
@@ -280,7 +279,7 @@ class EnglishKeyboard(private val context: Context): Keyboard(context) {
         val punctuation = PunctuationKey("?123")
         punctuation.keyColor = KeyboardTheme.keyControlBackground
         punctuation.keyPressedColor = KeyboardTheme.keyControlPressedBackground
-        punctuation.textSize = 18.dp2px.toFloat()
+        punctuation.textSize = KeyboardTheme.keyControlTextSize
         punctuation.bold = true
         val asterisk = PreviewTextKey('\u0025', '\u0000', listOf('\u2030', '\u2105'))
         val quote = PreviewTextKey('\u00A9')
@@ -297,7 +296,7 @@ class EnglishKeyboard(private val context: Context): Keyboard(context) {
         val char = QWERTYKey("ABC")
         char.keyColor = KeyboardTheme.keyControlBackground
         char.keyPressedColor = KeyboardTheme.keyControlPressedBackground
-        char.textSize = 18.dp2px.toFloat()
+        char.textSize = KeyboardTheme.keyControlTextSize
         char.bold = true
         val comma = PreviewTextKey('\u003C')
         comma.keyColor = KeyboardTheme.keyControlBackground
@@ -333,8 +332,6 @@ class EnglishKeyboard(private val context: Context): Keyboard(context) {
     }
 
     override fun onClick(key: Key) {
-        Log.i("[SK]", "[Keyboard] click: $key")
-
         var updated = false
         when (key) {
             is ShiftKey -> {
@@ -370,22 +367,10 @@ class EnglishKeyboard(private val context: Context): Keyboard(context) {
                     updated = true
                 }
             }
-            is DeleteKey -> {
-                Log.i("[SK]", "[Keyboard] delete")
-                keyboardListener?.onKeyboardKeyCode(KeyEvent.KEYCODE_DEL)
-            }
-            is SpaceKey -> {
-                Log.i("[SK]", "[Keyboard] space")
-                keyboardListener?.onKeyboardKeyCode(KeyEvent.KEYCODE_SPACE)
-            }
-            is DoneKey -> {
-                Log.i("[SK]", "[Keyboard] done")
-                keyboardListener?.onKeyboardKeyCode(KeyEvent.KEYCODE_ENTER)
-            }
-            is LangKey -> {
-                Log.i("[SK]", "[Keyboard] lang switch")
-                keyboardListener?.onLangSwitch()
-            }
+            is DeleteKey -> keyboardListener?.onKeyboardKeyCode(KeyEvent.KEYCODE_DEL)
+            is SpaceKey -> keyboardListener?.onKeyboardKeyCode(KeyEvent.KEYCODE_SPACE)
+            is DoneKey -> keyboardListener?.onKeyboardKeyCode(KeyEvent.KEYCODE_ENTER)
+            is LangKey -> keyboardListener?.onLangSwitch()
             else -> {
                 if (mode == UPPER) {
                     mode = NORMAL
@@ -411,9 +396,7 @@ class EnglishKeyboard(private val context: Context): Keyboard(context) {
                 }
                 true
             }
-            else -> {
-                false
-            }
+            else -> false
         }
     }
 }
@@ -469,10 +452,10 @@ class PinyinKeyboard(private val context: Context): Keyboard(context) {
         delete.keyPressedColor = KeyboardTheme.keyControlPressedBackground
         val number = NumberKey("?123")
         number.keyColor = KeyboardTheme.keyControlBackground
-        number.textSize = 18.dp2px.toFloat()
+        number.textSize = KeyboardTheme.keyControlTextSize
         number.bold = true
         number.keyPressedColor = KeyboardTheme.keyControlPressedBackground
-        val emoji = PreviewTextKey(',')
+        val emoji = PreviewTextKey('，')
         emoji.keyColor = KeyboardTheme.keyControlBackground
         emoji.textSize = KeyboardTheme.keySymbolTextSize.toFloat()
         val lang = LangKey(context.getDrawable(R.drawable.ic_lang_24dp)!!)
@@ -536,7 +519,7 @@ class PinyinKeyboard(private val context: Context): Keyboard(context) {
         val symbol = SymbolKey("=\\<")
         symbol.keyColor = KeyboardTheme.keyControlBackground
         symbol.keyPressedColor = KeyboardTheme.keyControlPressedBackground
-        symbol.textSize = 18.dp2px.toFloat()
+        symbol.textSize = KeyboardTheme.keyControlTextSize
         symbol.bold = true
         val asterisk = PreviewTextKey('\u3001')
         val quote = PreviewTextKey('\u201C', '\u0000', listOf('\u0022', '\u300A'), 0)
@@ -553,7 +536,7 @@ class PinyinKeyboard(private val context: Context): Keyboard(context) {
         val char = QWERTYKey("返回")
         char.keyColor = KeyboardTheme.keyControlBackground
         char.keyPressedColor = KeyboardTheme.keyControlPressedBackground
-        char.textSize = 18.dp2px.toFloat()
+        char.textSize = KeyboardTheme.keyControlTextSize
         char.bold = true
         val comma = PreviewTextKey(',')
         comma.keyColor = KeyboardTheme.keyControlBackground
@@ -611,7 +594,7 @@ class PinyinKeyboard(private val context: Context): Keyboard(context) {
         val punctuation = PunctuationKey("?123")
         punctuation.keyColor = KeyboardTheme.keyControlBackground
         punctuation.keyPressedColor = KeyboardTheme.keyControlPressedBackground
-        punctuation.textSize = 18.dp2px.toFloat()
+        punctuation.textSize = KeyboardTheme.keyControlTextSize
         punctuation.bold = true
         val asterisk = PreviewTextKey('\u0025', '\u0000', listOf('\u2030', '\u2105'))
         val quote = PreviewTextKey('\u2018', '\u0000', listOf('\u0027', '\u3008'))
@@ -628,7 +611,7 @@ class PinyinKeyboard(private val context: Context): Keyboard(context) {
         val char = QWERTYKey("返回")
         char.keyColor = KeyboardTheme.keyControlBackground
         char.keyPressedColor = KeyboardTheme.keyControlPressedBackground
-        char.textSize = 18.dp2px.toFloat()
+        char.textSize = KeyboardTheme.keyControlTextSize
         char.bold = true
         val comma = PreviewTextKey('\u300A')
         comma.keyColor = KeyboardTheme.keyControlBackground
@@ -688,22 +671,10 @@ class PinyinKeyboard(private val context: Context): Keyboard(context) {
                     updated = true
                 }
             }
-            is DeleteKey -> {
-                Log.i("[SK]", "[Keyboard] delete")
-                keyboardListener?.onKeyboardKeyCode(KeyEvent.KEYCODE_DEL)
-            }
-            is SpaceKey -> {
-                Log.i("[SK]", "[Keyboard] space")
-                keyboardListener?.onKeyboardKeyCode(KeyEvent.KEYCODE_SPACE)
-            }
-            is DoneKey -> {
-                Log.i("[SK]", "[Keyboard] done")
-                keyboardListener?.onKeyboardKeyCode(KeyEvent.KEYCODE_ENTER)
-            }
-            is LangKey -> {
-                Log.i("[SK]", "[Keyboard] lang switch")
-                keyboardListener?.onLangSwitch()
-            }
+            is DeleteKey -> keyboardListener?.onKeyboardKeyCode(KeyEvent.KEYCODE_DEL)
+            is SpaceKey -> keyboardListener?.onKeyboardKeyCode(KeyEvent.KEYCODE_SPACE)
+            is DoneKey -> keyboardListener?.onKeyboardKeyCode(KeyEvent.KEYCODE_ENTER)
+            is LangKey -> keyboardListener?.onLangSwitch()
             else -> {
                 if (key is TextKey) {
                     keyboardListener?.onKeyboardChar(key.keyCode)

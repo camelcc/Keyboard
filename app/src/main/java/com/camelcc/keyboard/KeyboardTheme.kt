@@ -21,6 +21,7 @@ object KeyboardTheme {
     val keyBorderRadius = 8.dp2px.toFloat()
     val keyTextSize = 26.dp2px
     val keySymbolTextSize = 22.dp2px
+    val keyControlTextSize = 18.dp2px.toFloat()
     val keySpaceTextSize = 14.dp2px
     val keyUpperTextSize = 12.dp2px
 

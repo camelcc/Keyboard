@@ -18,6 +18,8 @@ import kotlin.math.min
 
 class KeyboardView: View {
     companion object {
+        const val TAG = "KeyboardView"
+
         const val MSG_SHOW_PREVIEW = 1
         const val MSG_REMOVE_PREVIEW = 2
         const val MSG_REPEAT = 3
@@ -87,14 +89,12 @@ class KeyboardView: View {
     constructor(context: Context, attrs: AttributeSet? = null): this(context, attrs, 0)
     constructor(context: Context, attrs: AttributeSet? = null, defStyleAttr: Int): super(context, attrs, defStyleAttr) {
         val dm = context.resources.displayMetrics
-        val dw = min(dm.widthPixels, dm.heightPixels)
-        displayWidth = dw
+        displayWidth = min(dm.widthPixels, dm.heightPixels)
 
         mPaint.isAntiAlias = true
         mPaint.textSize = .0f
         mPaint.textAlign = Paint.Align.CENTER
         mPaint.alpha = 255
-
 
         val gridLayoutManager = GridLayoutManager(context, 128)
         mCandidateDetailViewAdapter = PinyinDetailsAdapter()
@@ -135,7 +135,6 @@ class KeyboardView: View {
         mPreviewPopup.elevation = KeyboardTheme.popupElevation.toFloat()
         mPreviewPopup.isClippingEnabled = false
         mPreviewPopup.isTouchable = false
-
         mPreviewPopupView = PopupPreviewTextView(context)
         mPreviewPopup.contentView = mPreviewPopupView
 
@@ -144,7 +143,6 @@ class KeyboardView: View {
         mMiniKeyboardPopup.elevation = KeyboardTheme.popupElevation.toFloat()
         mMiniKeyboardPopup.isClippingEnabled = false
         mMiniKeyboardPopup.isTouchable = false
-
         mMiniKeyboard = PopupMiniKeyboardView(context)
         mMiniKeyboard.listener = object : KeyboardListener {
             override fun onKeyboardChar(c: Char, fromPopup: Boolean) {
@@ -155,7 +153,7 @@ class KeyboardView: View {
             override fun onLangSwitch() {}
             override fun onKeyboardChanged() {}
             override fun onKeyboardKeyCode(keyCode: Int) {}
-            override fun onCandidate(text: String, index: Int, fromCompletion: Boolean) {}
+            override fun onCandidate(text: String, index: Int) {}
             override fun showMoreCandidates() {}
             override fun dismissMoreCandidates() {}
         }
@@ -190,7 +188,7 @@ class KeyboardView: View {
         invalidate()
     }
 
-    fun showCoverPopup() {
+    fun showMoreCandidatesPopup() {
         mCandidateDetailViewAdapter.notifyDataSetChanged()
 
         val coordinates = IntArray(2)
@@ -205,7 +203,7 @@ class KeyboardView: View {
         }
     }
 
-    fun dismissCoverPopup() {
+    fun dismissCandidatesPopup() {
         if (mCandidateDetailPopupWindow.isShowing) {
             mCandidateDetailPopupWindow.dismiss()
         }
@@ -252,13 +250,13 @@ class KeyboardView: View {
     override fun onMeasure(widthMeasureSpec: Int, heightMeasureSpec: Int) {
         // Always full screen width
         val height = paddingTop+paddingBottom+(mKeyboard?.height ?: 0)
-        Log.i("[SK]", "[KeyboardView]: onMeasure, h = $height, keyboard = $mKeyboard")
+        Log.d(TAG, "[KeyboardView]: onMeasure, h = $height, keyboard = $mKeyboard")
         setMeasuredDimension(MeasureSpec.getSize(widthMeasureSpec), height)
     }
 
     override fun onSizeChanged(w: Int, h: Int, oldw: Int, oldh: Int) {
         super.onSizeChanged(w, h, oldw, oldh)
-        Log.i("[SK]", "[KeyboardView]: onSizeChanged, w = $w, h = $h")
+        Log.d(TAG, "[KeyboardView]: onSizeChanged, w = $w, h = $h")
         mKeyboard?.resize(w, h)
         closing()
         // Release the buffer if any and it will be reallocated on the next draw
@@ -384,7 +382,7 @@ class KeyboardView: View {
         val action = ev.action
         val key = mKeyboard?.getKey(touchX, touchY) ?: return true // consume
 
-        Log.i("[SK]", "[KeyboardView] onModifiedTouchEvent: ${action.action}, x = ${ev.rawX}, y = ${ev.rawY}")
+//        Log.i(TAG, "[KeyboardView] onModifiedTouchEvent: ${action.action}, x = ${ev.rawX}, y = ${ev.rawY}")
 
         // Ignore all motion events until a DOWN
         if (mAbortKey && action != MotionEvent.ACTION_DOWN && action != MotionEvent.ACTION_CANCEL) {
@@ -565,8 +563,7 @@ class KeyboardView: View {
             return false
         }
 
-        var result = false
-        result = onLongPress(mCurrentKey)
+        var result = onLongPress(mCurrentKey)
         if (result) {
             showPreview(NOT_A_KEY)
         }
@@ -584,7 +581,7 @@ class KeyboardView: View {
         if (key !is PreviewTextKey || key.miniKeys.isNullOrEmpty()) {
             return false
         }
-        Log.i("[SK]", "[KeyboardView] onLongPress $key")
+//        Log.i(TAG, "[KeyboardView] onLongPress $key")
         val popupKeyWidth = key.width + KeyboardTheme.keyGap
 
         val popupKeyHeight = mKeyboard?.keyHeight ?: 0
@@ -599,10 +596,10 @@ class KeyboardView: View {
 
         var popupY = key.y + key.height - popupHeight
         var popupX = key.x-KeyboardTheme.keyGap/2
-        if (singleLine) {
-            popupX -= ((key.miniKeys.size-1)/2)*popupKeyWidth
+        popupX -= if (singleLine) {
+            ((key.miniKeys.size-1)/2)*popupKeyWidth
         } else {
-            popupX -= (((key.miniKeys.size+1)/2-1)/2)*popupKeyWidth
+            (((key.miniKeys.size+1)/2-1)/2)*popupKeyWidth
         }
         while (popupX < 0) {
             popupX += popupKeyWidth
@@ -618,7 +615,7 @@ class KeyboardView: View {
         mMiniKeyboardPopupBounds = Rect(screenX, screenY,
             screenX+popupWidth+2*KeyboardTheme.miniKeyboardPadding,
             screenY+popupHeight+2*KeyboardTheme.miniKeyboardPadding)
-        Log.i("[SK]", "[KeyboardView] show mini keyboard at $mMiniKeyboardPopupBounds")
+//        Log.i(TAG, "[KeyboardView] show mini keyboard at $mMiniKeyboardPopupBounds")
 
         val coordinates = IntArray(2)
         getLocationInWindow(coordinates)

@@ -29,7 +29,7 @@ interface KeyboardListener {
     fun onKeyboardChar(c: Char, fromPopup: Boolean = false)
     fun onKeyboardKeyCode(keyCode: Int)
 
-    fun onCandidate(text: String, index: Int, fromCompletion: Boolean)
+    fun onCandidate(text: String, index: Int)
     fun showMoreCandidates()
     fun dismissMoreCandidates()
 }
@@ -301,12 +301,12 @@ class InputService : InputMethodService(),
 
         mCompletions = completions ?: arrayOf()
         if (completions == null || completions.isEmpty()) {
-            candidateView.setSuggestions(listOf(), true, false)
+            candidateView.setSuggestions(listOf())
             return
         }
 
         val sug = completions.map { it.text.toString() }
-        candidateView.setSuggestions(sug, true, true)
+        candidateView.setSuggestions(sug)
     }
 
     override fun onCurrentInputMethodSubtypeChanged(newSubtype: InputMethodSubtype?) {
@@ -423,9 +423,9 @@ class InputService : InputMethodService(),
         keyboardView.invalidateAllKeys()
     }
 
-    override fun onCandidate(text: String, index: Int, fromCompletion: Boolean) {
-        keyboardView.dismissCoverPopup()
-        if (fromCompletion) {
+    override fun onCandidate(text: String, index: Int) {
+        keyboardView.dismissCandidatesPopup()
+        if (mCompletionOn) {
             currentInputConnection.commitCompletion(mCompletions[index])
             return
         }
@@ -445,14 +445,14 @@ class InputService : InputMethodService(),
         if (imeType == IME.ENGLISH) {
             return
         }
-        keyboardView.showCoverPopup()
+        keyboardView.showMoreCandidatesPopup()
     }
 
     override fun dismissMoreCandidates() {
         if (imeType == IME.ENGLISH) {
             return
         }
-        keyboardView.dismissCoverPopup()
+        keyboardView.dismissCandidatesPopup()
     }
 
     override fun commitText(text: String) {
@@ -532,7 +532,7 @@ class InputService : InputMethodService(),
     private fun updateCandidates() {
         if (imeType == IME.ENGLISH) {
             if (mComposing.isBlank()) {
-                candidateView.setSuggestions(listOf(), false, false)
+                candidateView.setSuggestions(listOf())
             }
             if (!mPredictionOn || mCompletionOn) {
                 return
@@ -547,9 +547,9 @@ class InputService : InputMethodService(),
                 words.add(s.mWord)
             }
             words.add(0, searchWord)
-            candidateView.setSuggestions(words, false, suggestions?.valid ?: false)
+            candidateView.setSuggestions(words)
         } else if (imeType == IME.PINYIN) {
-            candidateView.setSuggestions(pinyin.candidates, false, false, pinyin.displayComposing ?: "")
+            candidateView.setSuggestions(pinyin.candidates, pinyin.displayComposing ?: "")
         }
     }
 }

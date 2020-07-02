@@ -15,23 +15,20 @@ import com.camelcc.keyboard.pinyin.ComposingTextView
 class CandidateView: View {
     var listener: KeyboardListener? = null
 
+    private var mShowMore = false
+    private var mShowComposing = false
+
     private val paint: Paint = Paint()
     private val moreExpandDrawable: Drawable
     private val moreDismissDrawable: Drawable
-
-    private var mShowComposing = false
-    private var mShowDropDownAction = false
 
     private val mComposingPopup: PopupWindow
     private val mComposingView: ComposingTextView
 
     private var mActiveIndex = -1
-    private var mFromCompletion = false
     private var mSuggestions = listOf<String>()
     private var mSuggestionsTextSize = KeyboardTheme.candidateTextSize
     private var mSuggestionsWidth = mutableListOf<Int>()
-
-    private var mTypedWordValid = true
 
     private var mMoreExpanded = false
 
@@ -56,9 +53,9 @@ class CandidateView: View {
         mComposingPopup.contentView = mComposingView
     }
 
-    fun resetDisplayStyle(showComposing: Boolean, showDropDownAction: Boolean) {
+    fun resetDisplayStyle(showComposing: Boolean, showMore: Boolean) {
+        mShowMore = showMore
         mShowComposing = showComposing
-        mShowDropDownAction = showDropDownAction
 
         mActiveIndex = -1
         mSuggestions = listOf()
@@ -70,10 +67,8 @@ class CandidateView: View {
         }
     }
 
-    fun setSuggestions(suggestions: List<String>, fromCompletion: Boolean, typedWordValid: Boolean, composing: String = "") {
-        mFromCompletion = fromCompletion
+    fun setSuggestions(suggestions: List<String>, composing: String = "") {
         mSuggestions = suggestions
-        mTypedWordValid = typedWordValid
         mMoreExpanded = false
 
         mComposingView.composing = composing
@@ -88,9 +83,14 @@ class CandidateView: View {
             val coordinates = IntArray(2)
             getLocationInWindow(coordinates)
             if (mComposingPopup.isShowing) {
-                mComposingPopup.update(coordinates[0], coordinates[1]-mComposingPopup.height, mComposingPopup.width, mComposingPopup.height)
+                mComposingPopup.update(coordinates[0],
+                    coordinates[1]-mComposingPopup.height,
+                    mComposingPopup.width,
+                    mComposingPopup.height)
             } else {
-                mComposingPopup.showAtLocation(this, Gravity.START or Gravity.TOP, coordinates[0], coordinates[1]-mComposingPopup.height)
+                mComposingPopup.showAtLocation(this, Gravity.START or Gravity.TOP,
+                    coordinates[0],
+                    coordinates[1]-mComposingPopup.height)
             }
         } else {
             mComposingPopup.dismiss()
@@ -132,7 +132,7 @@ class CandidateView: View {
         }
         var availableWidth = right-left-2*KeyboardTheme.candidateViewPadding
 
-        if (!mShowDropDownAction) {
+        if (!mShowMore) {
             var texts = if (mSuggestions.size > 3) {
                 listOf(mSuggestions[0], mSuggestions[1], mSuggestions[2]) } else mSuggestions
             var textSize = KeyboardTheme.candidateTextSize
@@ -230,7 +230,7 @@ class CandidateView: View {
         }
 
         var x = paddingLeft + KeyboardTheme.candidateViewPadding
-        if (!mShowDropDownAction) {
+        if (!mShowMore) {
             paint.textSize = KeyboardTheme.candidateTextSize
             val w = (width - paddingLeft - paddingRight - (mSuggestions.size-1)*1.dp2px)/mSuggestions.size
             paint.textSize = mSuggestionsTextSize
@@ -290,7 +290,7 @@ class CandidateView: View {
         val x = ev.x
         val y = ev.y
         var index = -1
-        if (!mShowDropDownAction) {
+        if (!mShowMore) {
             val w = (width - paddingLeft - paddingRight)/mSuggestions.size
             index = x.toInt()/w
         } else {
@@ -318,14 +318,11 @@ class CandidateView: View {
                         mMoreExpanded = !mMoreExpanded
                         if (mMoreExpanded) {
                             listener?.showMoreCandidates()
-//                            listener?.onMoreExpand()
                         } else {
                             listener?.dismissMoreCandidates()
-//                            listener?.onMoreDismiss()
                         }
                     } else {
-                        listener?.onCandidate(mSuggestions[index], index, mFromCompletion)
-//                        listener?.onSuggestion(mSuggestions[index], index, mFromCompletion)
+                        listener?.onCandidate(mSuggestions[index], index)
                         mMoreExpanded = false
                     }
                 }

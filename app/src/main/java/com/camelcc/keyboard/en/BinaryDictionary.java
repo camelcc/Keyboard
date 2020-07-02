@@ -5,13 +5,15 @@ import android.content.res.AssetFileDescriptor;
 import android.text.TextUtils;
 import android.util.Log;
 
-import java.io.ByteArrayInputStream;
-import java.io.File;
-import java.io.FileDescriptor;
+import androidx.annotation.WorkerThread;
+
 import java.io.IOException;
 import java.io.InputStream;
-import java.nio.file.Files;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Comparator;
+import java.util.LinkedList;
+import java.util.List;
 import java.util.stream.Collectors;
 
 /*
@@ -118,6 +120,8 @@ import java.util.stream.Collectors;
  * if (FLAG_BIGRAM_SHORTCUT_ATTR_HAS_NEXT goto flags
  */
 public class BinaryDictionary {
+    private static final String TAG = "BinDict";
+
     private static final int MAGIC_NUMBER = 0x9BC13AFE;
     private static final int VERSION100 = 100;
 
@@ -355,16 +359,17 @@ public class BinaryDictionary {
         }
 
         data = new byte[(int)len];
-        try (InputStream fis = fd.createInputStream()) {
+        InputStream fis = null;
+        try {
+            fis = fd.createInputStream();
             fis.read(data);
+            parseHeader(data);
+        } finally {
+            if (fis != null) {
+                fis.close();
+            }
         }
-        parseHeader(data);
     }
-
-//    public BinaryDictionary(File dictionary) throws IOException, DictionaryInvalidFormatException {
-//        data = Files.readAllBytes(dictionary.toPath());
-//        parseHeader(data);
-//    }
 
     private static void parseHeader(byte[] buffer) throws DictionaryInvalidFormatException {
         if (buffer[0] != (byte)(0xFF & (MAGIC_NUMBER >> 24)) ||
@@ -377,7 +382,7 @@ public class BinaryDictionary {
         if (version != VERSION100) {
             throw new DictionaryInvalidFormatException("unsupported dictionary version");
         }
-        Log.i("[DICT]", "dictionary loaded, version = " + version);
+        Log.i(TAG, "dictionary loaded, version = " + version);
     }
 
     // run in background thread
@@ -407,6 +412,7 @@ public class BinaryDictionary {
         return new QueryResults(word, valid, valid ? node.frequency : 0, suggestions);
     }
 
+    @WorkerThread
     public QueryResults fuseQuery(String word) throws DictionaryInvalidFormatException {
         if (TextUtils.isEmpty(word)) {
             return null;

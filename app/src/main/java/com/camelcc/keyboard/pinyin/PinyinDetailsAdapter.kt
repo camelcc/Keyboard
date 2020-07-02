@@ -54,7 +54,7 @@ class PinyinDetailsAdapter :
         val vh = ViewHolder(textView)
         vh.itemView.setOnClickListener {
             val pos = vh.adapterPosition
-            listener?.onCandidate(pinyinIME?.candidates?.get(pos) ?: "", pos, false)
+            listener?.onCandidate(pinyinIME?.candidates?.get(pos) ?: "", pos)
         }
         return vh
     }

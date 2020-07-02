@@ -14,7 +14,7 @@ class PopupPreviewTextView : View {
             invalidate()
         }
 
-    private val mPaint = Paint()
+    private val paint = Paint()
     private val ellipsis = "\u2026"
     private var ellipsisWidth = .0f
     private val keyHeight: Int get() = height-KeyboardTheme.popupMarginBottom
@@ -30,20 +30,20 @@ class PopupPreviewTextView : View {
         }
         clipToOutline = true
 
-        mPaint.isAntiAlias = true
-        mPaint.textSize = .0f
-        mPaint.textAlign = Paint.Align.CENTER
-        mPaint.alpha = 255
-        mPaint.typeface = Typeface.DEFAULT
+        paint.isAntiAlias = true
+        paint.textSize = .0f
+        paint.textAlign = Paint.Align.CENTER
+        paint.alpha = 255
+        paint.typeface = Typeface.DEFAULT
 
-        mPaint.textSize = KeyboardTheme.popupSubscriptionSize
-        ellipsisWidth = mPaint.measureText(ellipsis)
+        paint.textSize = KeyboardTheme.popupSubscriptionSize
+        ellipsisWidth = paint.measureText(ellipsis)
     }
 
     override fun onDraw(canvas: Canvas) {
         super.onDraw(canvas)
         if (key != NOT_A_KEY) {
-            val paint = mPaint
+            val paint = paint
             paint.textSize = KeyboardTheme.popupTextSize
             canvas.drawText(key.text,
                 width/2.0f,

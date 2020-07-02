@@ -18,12 +18,12 @@ abstract class Key {
     var width = .0f
     var height = .0f
 
-    var edges = 0
-
     var keyColor = KeyboardTheme.keyColor
     var keyPressedColor = keyColor
 
     var repeatable = false
+
+    private var edges = 0
     private var pressed = false
 
     fun paint(canvas: Canvas, paint: Paint) {
