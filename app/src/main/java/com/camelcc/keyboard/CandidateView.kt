@@ -11,89 +11,86 @@ import android.view.MotionEvent
 import android.view.View
 import android.widget.PopupWindow
 import com.camelcc.keyboard.pinyin.ComposingTextView
+import kotlin.math.min
 
-class CandidateView: View {
+class CandidateView(context: Context) : View(context) {
     var listener: KeyboardListener? = null
 
-    private var mShowMore = false
-    private var mShowComposing = false
-
     private val paint: Paint = Paint()
-    private val moreExpandDrawable: Drawable
-    private val moreDismissDrawable: Drawable
 
-    private val mComposingPopup: PopupWindow
-    private val mComposingView: ComposingTextView
+    private var showComposing = false
+    private val composingPopup: PopupWindow
+    private val composingView: ComposingTextView
 
-    private var mActiveIndex = -1
-    private var mSuggestions = listOf<String>()
-    private var mSuggestionsTextSize = KeyboardTheme.candidateTextSize
-    private var mSuggestionsWidth = mutableListOf<Int>()
+    private var showMore = false
+    private var expanded = false
+    private val expandDrawable: Drawable
+    private val dismissDrawable: Drawable
 
-    private var mMoreExpanded = false
+    private var textSize = KeyboardTheme.candidateTextSize
+    private var activeIndex = -1
+    private var candidates = listOf<String>()
+    private var candidatesWidth = mutableListOf<Int>()
 
-    constructor(context: Context): super(context) {
+    init {
         setBackgroundColor(Color.TRANSPARENT)
-
-        moreExpandDrawable = context.getDrawable(R.drawable.ic_keyboard_arrow_down_24dp)!!
-        moreDismissDrawable = context.getDrawable(R.drawable.ic_keyboard_arrow_up_24dp)!!
-
+        expandDrawable = context.getDrawable(R.drawable.ic_keyboard_arrow_down_24dp)!!
+        dismissDrawable = context.getDrawable(R.drawable.ic_keyboard_arrow_up_24dp)!!
         paint.color = Color.BLACK
         paint.isAntiAlias = true
         paint.textSize = KeyboardTheme.candidateTextSize
         paint.strokeWidth = .0f
         setWillNotDraw(false)
-
-        mComposingView = ComposingTextView(context)
-        mComposingPopup = PopupWindow(context)
-        mComposingPopup.isClippingEnabled = false
-        mComposingPopup.setBackgroundDrawable(null)
-        mComposingPopup.inputMethodMode = PopupWindow.INPUT_METHOD_NOT_NEEDED
-        mComposingPopup.isTouchable = false
-        mComposingPopup.contentView = mComposingView
+        composingView = ComposingTextView(context)
+        composingPopup = PopupWindow(context)
+        composingPopup.isClippingEnabled = false
+        composingPopup.setBackgroundDrawable(null)
+        composingPopup.inputMethodMode = PopupWindow.INPUT_METHOD_NOT_NEEDED
+        composingPopup.isTouchable = false
+        composingPopup.contentView = composingView
     }
 
     fun resetDisplayStyle(showComposing: Boolean, showMore: Boolean) {
-        mShowMore = showMore
-        mShowComposing = showComposing
+        this.showMore = showMore
+        this.showComposing = showComposing
 
-        mActiveIndex = -1
-        mSuggestions = listOf()
-        mSuggestionsWidth = mutableListOf()
+        activeIndex = -1
+        candidates = listOf()
+        candidatesWidth = mutableListOf()
         invalidate()
 
-        if (!mShowComposing) {
-            mComposingPopup.dismiss()
+        if (!showComposing) {
+            closing()
         }
     }
 
     fun setSuggestions(suggestions: List<String>, composing: String = "") {
-        mSuggestions = suggestions
-        mMoreExpanded = false
+        this.candidates = suggestions
+        expanded = false
 
-        mComposingView.composing = composing
+        composingView.composing = composing
 
         invalidate()
         requestLayout() // relayout fake children (text) views
 
-        if (mShowComposing) {
-            mComposingPopup.height = mComposingView.calculatedHeight
-            mComposingPopup.width = mComposingView.calculatedWidth
+        if (showComposing) {
+            composingPopup.height = composingView.calculatedHeight
+            composingPopup.width = composingView.calculatedWidth
 
             val coordinates = IntArray(2)
             getLocationInWindow(coordinates)
-            if (mComposingPopup.isShowing) {
-                mComposingPopup.update(coordinates[0],
-                    coordinates[1]-mComposingPopup.height,
-                    mComposingPopup.width,
-                    mComposingPopup.height)
+            if (composingPopup.isShowing) {
+                composingPopup.update(coordinates[0],
+                    coordinates[1]-composingPopup.height,
+                    composingPopup.width,
+                    composingPopup.height)
             } else {
-                mComposingPopup.showAtLocation(this, Gravity.START or Gravity.TOP,
+                composingPopup.showAtLocation(this, Gravity.START or Gravity.TOP,
                     coordinates[0],
-                    coordinates[1]-mComposingPopup.height)
+                    coordinates[1]-composingPopup.height)
             }
         } else {
-            mComposingPopup.dismiss()
+            composingPopup.dismiss()
         }
     }
 
@@ -108,14 +105,12 @@ class CandidateView: View {
     }
 
     private fun closing() {
-        if (mComposingPopup.isShowing) {
-            mComposingPopup.dismiss()
+        if (composingPopup.isShowing) {
+            composingPopup.dismiss()
         }
     }
 
     override fun onMeasure(widthMeasureSpec: Int, heightMeasureSpec: Int) {
-        Log.d("[SK]", "CandidateView onMeasure")
-
         val candidateHeight = (paddingTop + paddingBottom +
                 2*KeyboardTheme.candidateTextPadding +
                 KeyboardTheme.candidateTextSize).toInt().coerceAtLeast(KeyboardTheme.candidateHeight)
@@ -124,165 +119,117 @@ class CandidateView: View {
     }
 
     override fun onLayout(changed: Boolean, left: Int, top: Int, right: Int, bottom: Int) {
-        Log.d("[SK]", "CandidateView onLayout")
+        Log.d("[CandidateView]", "CandidateView onLayout")
         super.onLayout(changed, left, top, right, bottom)
-        if (mSuggestions.isEmpty()) {
-            mSuggestionsWidth = mutableListOf()
+        if (candidates.isEmpty()) {
+            candidatesWidth = mutableListOf()
             return
         }
-        var availableWidth = right-left-2*KeyboardTheme.candidateViewPadding
-
-        if (!mShowMore) {
-            var texts = if (mSuggestions.size > 3) {
-                listOf(mSuggestions[0], mSuggestions[1], mSuggestions[2]) } else mSuggestions
-            var textSize = KeyboardTheme.candidateTextSize
-            while (!fit(texts, textSize, availableWidth)) {
-                if (textSize <= KeyboardTheme.candidateMinTextSize) {
-                    textSize = KeyboardTheme.candidateTextSize
-                    if (texts.size == 1) {
-                        textSize = KeyboardTheme.candidateMinTextSize
-                        var text = texts[0]
-                        val i = text.indexOf("...")
-                        if (i < 0) {
-                            text = text.replaceRange((text.length/2-2).coerceAtLeast(0), (text.length/2+2).coerceAtMost(text.length), "...")
-                        } else {
-                            text = text.replaceRange((i-1).coerceAtLeast(0), (i+4).coerceAtMost(text.length), "...")
-                        }
-                        texts = listOf(text)
-                    } else if (texts.size == 2) {
-                        texts = listOf(texts[0])
-                    } else {
-                        texts = listOf(texts[0], texts[1])
-                    }
-                } else {
-                    textSize -= 1.dp2px
-                }
-            }
-            mSuggestionsTextSize = textSize
-            mSuggestions = texts
-        } else {
-            paint.textSize = KeyboardTheme.pinyinTextSize
-            var pickedIndex = 0
-            var usedWidth = 0
-            while (usedWidth <= availableWidth && pickedIndex < mSuggestions.size) {
-                var width = (2*KeyboardTheme.pinyinTextPadding + paint.measureText(mSuggestions[pickedIndex])).toInt()
-                if (pickedIndex > 0) {
-                    width += 1
-                }
-                if (usedWidth + width > availableWidth) {
-                    break
-                }
-                usedWidth += width
-                pickedIndex++
-            }
-            assert(pickedIndex <= mSuggestions.size)
-            // leave space for more key
-            if (pickedIndex < mSuggestions.size) {
-                val moreWidth = moreExpandDrawable.intrinsicWidth + 2*KeyboardTheme.candidateTextSize
-                availableWidth -= moreWidth.toInt()
-            }
-            if (pickedIndex == 0 || pickedIndex == 1) { // rare case, should not happen if engine is good
-                mSuggestions = listOf(mSuggestions[0])
-                mSuggestionsWidth = mutableListOf(availableWidth)
-                return
-            }
-            // have at least one candidate, back one suggestion is no space, only possible when more key
-            if (usedWidth > availableWidth && pickedIndex > 1) {
-                pickedIndex--
-                var width = (2*KeyboardTheme.pinyinTextPadding + paint.measureText(mSuggestions[pickedIndex])).toInt()
-                if (pickedIndex > 0) {
-                    width += 1
-                }
-                usedWidth -= width
-            }
-            // picked >= 1, real layout each candidate
-            mSuggestionsWidth = mutableListOf()
-            val more = (availableWidth-usedWidth).coerceAtLeast(0)/pickedIndex
-            for (i in 0 until pickedIndex) {
-                var width = (2*KeyboardTheme.pinyinTextPadding + paint.measureText(mSuggestions[i])).toInt()
-                if (pickedIndex > 0) {
-                    width += 1
-                }
-                width += more
-                mSuggestionsWidth.add(width)
-            }
-        }
-    }
-
-    private fun fit(texts: List<String>, textSize: Float, width: Int): Boolean {
-        if (texts.isEmpty()) {
-            return true
-        }
+        textSize = KeyboardTheme.pinyinTextSize
         paint.textSize = textSize
-        val maxWidth = texts.map { paint.measureText(it)+2*KeyboardTheme.candidateTextPadding }.max() ?: .0f
-        return maxWidth*texts.size + (texts.size - 1) * 1.dp2px <= width
+
+        var availableWidth = right-left-2*KeyboardTheme.candidateViewPadding
+        var pickedIndex = 0
+        var textWidth = 0
+        while (pickedIndex < candidates.size && textWidth <= availableWidth) {
+            pickedIndex++
+            textWidth += (paint.measureText(candidates[pickedIndex-1])+2*KeyboardTheme.pinyinTextPadding+1.dp2px).toInt()
+        }
+        if (pickedIndex < min(3, candidates.size)) {
+            pickedIndex = min(3, candidates.size)
+            textWidth = candidates.subList(0, pickedIndex).map { (paint.measureText(it)+2*KeyboardTheme.pinyinTextPadding).toInt() }.sum()
+            textWidth += 1.dp2px * (pickedIndex-1)
+        }
+        // pick at least 3 if possible
+        if (pickedIndex < candidates.size && showMore) {
+            val moreWidth = expandDrawable.intrinsicWidth + 2*KeyboardTheme.candidateTextSize
+            availableWidth -= moreWidth.toInt()
+        }
+        if (pickedIndex == 0 || pickedIndex == 1) { // rare case, should not happen if engine is good
+            candidates = listOf(candidates[0])
+            candidatesWidth = mutableListOf(availableWidth)
+            return
+        }
+        // have at least one candidate, back one suggestion if no space, only possible when more key
+        while (textWidth > availableWidth && pickedIndex > 3) {
+            pickedIndex--
+            textWidth = candidates.subList(0, pickedIndex).map { (paint.measureText(it)+2*KeyboardTheme.pinyinTextPadding).toInt() }.sum()
+            textWidth += 1.dp2px * (pickedIndex-1)
+        }
+        // shrink text size if needed
+        while (textWidth > availableWidth) {
+            if (textSize <= KeyboardTheme.candidateMinTextSize) {
+                if (pickedIndex == 1) {
+                    textSize = KeyboardTheme.candidateMinTextSize
+                    break
+                } else {
+                    textSize = KeyboardTheme.candidateTextSize
+                    pickedIndex--
+                }
+            } else {
+                textSize -= 1.dp2px
+            }
+            paint.textSize = textSize
+            textWidth = candidates.subList(0, pickedIndex).map { (paint.measureText(it)+2*KeyboardTheme.pinyinTextPadding).toInt() }.sum()
+            textWidth += 1.dp2px * (candidates.size-1)
+        }
+
+        // picked >= 1, real layout each candidate
+        candidatesWidth = mutableListOf()
+        val more = (availableWidth-textWidth-pickedIndex.dp2px).coerceAtLeast(0)/pickedIndex
+        for (i in 0 until pickedIndex) {
+            var width = (2*KeyboardTheme.pinyinTextPadding + paint.measureText(candidates[i])).toInt().coerceAtMost(availableWidth)
+            width += more
+            candidatesWidth.add(width)
+        }
     }
 
     override fun onDraw(canvas: Canvas) {
-        Log.d("[SK]", "CandidateView onDraw")
+        Log.d("[CandidateView]", "CandidateView onDraw")
         super.onDraw(canvas)
 
         paint.style = Paint.Style.FILL
         paint.color = KeyboardTheme.background
         canvas.drawRect(.0f, .0f, width.toFloat(), height.toFloat(), paint)
-        if (mSuggestions.isNullOrEmpty()) {
+        if (candidates.isNullOrEmpty()) {
             return
         }
 
         var x = paddingLeft + KeyboardTheme.candidateViewPadding
-        if (!mShowMore) {
-            paint.textSize = KeyboardTheme.candidateTextSize
-            val w = (width - paddingLeft - paddingRight - (mSuggestions.size-1)*1.dp2px)/mSuggestions.size
-            paint.textSize = mSuggestionsTextSize
-            for (i in mSuggestions.indices) {
-                if (i == mActiveIndex) {
-                    paint.color = KeyboardTheme.candidatePickedColor
-                    canvas.drawRect(x.toFloat(), .0f, (x+w).toFloat(), height.toFloat(), paint)
-                }
-
-                paint.color = Color.BLACK
-                val tw = paint.measureText(mSuggestions[i])
-                canvas.drawText(mSuggestions[i], x + w/2.0f-tw/2.0f, height/2-(paint.descent()+paint.ascent())/2, paint)
-                x += w
-
-                if (i != mSuggestions.size-1) {
-                    canvas.drawLine(x.toFloat(), KeyboardTheme.candidateVerticalPadding.toFloat(), x+1.dp2px.toFloat(), height.toFloat()-KeyboardTheme.candidateVerticalPadding, paint)
-                    x += 1.dp2px
-                }
+        paint.textSize = textSize
+        for (i in candidatesWidth.indices) {
+            if (i > 0) {
+                canvas.drawLine(x.toFloat(), KeyboardTheme.candidateVerticalPadding.toFloat(), x+1.dp2px.toFloat(), height.toFloat()- KeyboardTheme.candidateVerticalPadding, paint)
+                x += 1.dp2px
             }
-        } else {
-            paint.textSize = KeyboardTheme.pinyinTextSize
-            for (i in mSuggestionsWidth.indices) {
-                if (i == mActiveIndex) {
-                    paint.color = KeyboardTheme.candidatePickedColor
-                    canvas.drawRect(x.toFloat(), .0f, (x+mSuggestionsWidth[i]).toFloat(), height.toFloat(), paint)
-                }
 
-                paint.color = Color.BLACK
-                val tw = paint.measureText(mSuggestions[i]).coerceAtMost(mSuggestionsWidth[i].toFloat())
-                val ty = height/2 - (paint.descent()+paint.ascent())/2
-                canvas.drawText(mSuggestions[i], x + mSuggestionsWidth[i]/2.0f-tw/2.0f, ty, paint)
-
-                x += mSuggestionsWidth[i]
-
-                if (i != mSuggestions.size-1) {
-                    canvas.drawLine(x.toFloat(), KeyboardTheme.candidateVerticalPadding.toFloat(), x+1.dp2px.toFloat(), height.toFloat()- KeyboardTheme.candidateVerticalPadding, paint)
-                    x += 1.dp2px
-                }
+            if (i == activeIndex) {
+                paint.color = KeyboardTheme.candidatePickedColor
+                canvas.drawRect(x.toFloat(), .0f, (x+candidatesWidth[i]).toFloat(), height.toFloat(), paint)
             }
-            if (mSuggestionsWidth.size < mSuggestions.size) {
-                val drawableX = (x + (width-x-moreExpandDrawable.intrinsicWidth)/2).toFloat()
-                val drawableY = ((height-moreExpandDrawable.intrinsicHeight)/2).toFloat()
-                canvas.translate(drawableX, drawableY)
-                if (mMoreExpanded) {
-                    moreDismissDrawable.setBounds(0, 0, moreDismissDrawable.intrinsicWidth, moreDismissDrawable.intrinsicHeight)
-                    moreDismissDrawable.draw(canvas)
-                } else {
-                    moreExpandDrawable.setBounds(0, 0, moreExpandDrawable.intrinsicWidth, moreExpandDrawable.intrinsicHeight)
-                    moreExpandDrawable.draw(canvas)
-                }
-                canvas.translate(-drawableX, -drawableY)
+
+            paint.color = Color.BLACK
+            val tw = paint.measureText(candidates[i]).coerceAtMost(candidatesWidth[i].toFloat())
+            val ty = height/2 - (paint.descent()+paint.ascent())/2
+            canvas.drawText(candidates[i], x + candidatesWidth[i]/2.0f-tw/2.0f, ty, paint)
+
+            x += candidatesWidth[i]
+        }
+        if (candidatesWidth.size < candidates.size && showMore) {
+            canvas.drawLine(x.toFloat(), KeyboardTheme.candidateVerticalPadding.toFloat(), x+1.dp2px.toFloat(), height.toFloat()- KeyboardTheme.candidateVerticalPadding, paint)
+            x += 1.dp2px
+
+            val drawableX = (x + (width-x-expandDrawable.intrinsicWidth)/2).toFloat()
+            val drawableY = ((height-expandDrawable.intrinsicHeight)/2).toFloat()
+            canvas.translate(drawableX, drawableY)
+            if (expanded) {
+                dismissDrawable.setBounds(0, 0, dismissDrawable.intrinsicWidth, dismissDrawable.intrinsicHeight)
+                dismissDrawable.draw(canvas)
+            } else {
+                expandDrawable.setBounds(0, 0, expandDrawable.intrinsicWidth, expandDrawable.intrinsicHeight)
+                expandDrawable.draw(canvas)
             }
+            canvas.translate(-drawableX, -drawableY)
         }
     }
 
@@ -290,47 +237,42 @@ class CandidateView: View {
         val x = ev.x
         val y = ev.y
         var index = -1
-        if (!mShowMore) {
-            val w = (width - paddingLeft - paddingRight)/mSuggestions.size
-            index = x.toInt()/w
-        } else {
-            var w = 0
-            for (i in mSuggestionsWidth.indices) {
-                if (w + mSuggestionsWidth[i] >= x) {
-                    index = i
-                    break
-                } else {
-                    w += mSuggestionsWidth[i]
-                }
+        var w = 0
+        for (i in candidatesWidth.indices) {
+            if (w + candidatesWidth[i] >= x) {
+                index = i
+                break
+            } else {
+                w += candidatesWidth[i] + if (i > 0) 1.dp2px else 0
             }
         }
 
         when (ev.action) {
             MotionEvent.ACTION_DOWN -> {
-                if (mActiveIndex != index) {
-                    mActiveIndex = index
+                if (activeIndex != index) {
+                    activeIndex = index
                     invalidate()
                 }
             }
             MotionEvent.ACTION_UP -> {
-                if (index == mActiveIndex) {
+                if (index == activeIndex) {
                     if (index == -1) {
-                        mMoreExpanded = !mMoreExpanded
-                        if (mMoreExpanded) {
+                        expanded = !expanded
+                        if (expanded) {
                             listener?.showMoreCandidates()
                         } else {
                             listener?.dismissMoreCandidates()
                         }
                     } else {
-                        listener?.onCandidate(mSuggestions[index], index)
-                        mMoreExpanded = false
+                        listener?.onCandidate(candidates[index], index)
+                        expanded = false
                     }
                 }
-                mActiveIndex = -1
+                activeIndex = -1
                 invalidate()
             }
             MotionEvent.ACTION_CANCEL -> {
-                mActiveIndex = -1
+                activeIndex = -1
                 invalidate()
             }
             else -> {}
