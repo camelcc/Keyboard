@@ -13,13 +13,8 @@ import android.view.ViewGroup
 import android.view.WindowManager
 import android.view.inputmethod.CompletionInfo
 import android.view.inputmethod.EditorInfo
-import android.view.inputmethod.InputMethodManager
-import android.view.inputmethod.InputMethodSubtype
 import com.android.inputmethod.pinyin.PinyinIME
 import com.camelcc.keyboard.en.BinaryDictionary
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.Job
 
 interface KeyboardListener {
     fun onLangSwitch()
@@ -36,29 +31,15 @@ interface KeyboardListener {
 
 val Int.dp2px: Int get() = (TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_DIP, this.toFloat(), Resources.getSystem().displayMetrics)).toInt()
 
-class InputService : InputMethodService(),
-    KeyboardListener,
-    PinyinIME.PinyinIMEListener {
-    val tag = "[SK]"
-
-    enum class IME {
+class InputService : InputMethodService(), KeyboardListener, PinyinIME.PinyinIMEListener {
+    enum class IMEType {
         ENGLISH,
         PINYIN
     }
 
-    enum class InputState {
-        TYPING, FINISHED, SUGGESTED
-    }
-
-    private val ioJob = Job()
-
-    private lateinit var inputManager: InputMethodManager
-
-
-    private var imeType = IME.ENGLISH
+    private var imeType = IMEType.ENGLISH
     private lateinit var keyboard: Keyboard
     private lateinit var keyboardView: KeyboardView
-
     private lateinit var candidateView: CandidateView
 
     private var mCompletionOn = false
@@ -69,6 +50,10 @@ class InputService : InputMethodService(),
     private lateinit var enIME: BinaryDictionary
     private val mComposing = StringBuilder()
     private var mCompletions: Array<CompletionInfo> = arrayOf()
+
+    enum class InputState {
+        TYPING, FINISHED, SUGGESTED
+    }
     /*
      * Simple state machine for input state
      *   <--------- SPACE + chars ------------------
@@ -88,9 +73,9 @@ class InputService : InputMethodService(),
 
     override fun onCreate() {
         super.onCreate()
-        Log.i(tag, "onCreate")
+        Log.d("[IME]", "onCreate")
 
-        inputManager = getSystemService(Context.INPUT_METHOD_SERVICE) as InputMethodManager
+//        inputManager = getSystemService(Context.INPUT_METHOD_SERVICE) as InputMethodManager
 //        suggestion = TypeSuggestion(serviceIOScope)
         // TODO: try catch
 //        suggestion.initializeDictionary(this)
@@ -104,7 +89,6 @@ class InputService : InputMethodService(),
     override fun onDestroy() {
         super.onDestroy()
         pinyin.onDestroy()
-        ioJob.cancel()
     }
 
     /**
@@ -113,7 +97,7 @@ class InputService : InputMethodService(),
      */
     override fun onInitializeInterface() {
         val displayContext = getDisplayContext()
-        keyboard = if (imeType == IME.ENGLISH) EnglishKeyboard(displayContext) else PinyinKeyboard(displayContext)
+        keyboard = if (imeType == IMEType.ENGLISH) EnglishKeyboard(displayContext) else PinyinKeyboard(displayContext)
     }
 
     /**
@@ -196,7 +180,7 @@ class InputService : InputMethodService(),
     }
 
     override fun onCreateInputView(): View {
-        Log.i(tag, "onCreateInputView")
+        Log.d("[IME]", "onCreateInputView")
         val inputView = KeyboardView(this)
         inputView.layoutParams = ViewGroup.LayoutParams(
             ViewGroup.LayoutParams.MATCH_PARENT,
@@ -214,7 +198,7 @@ class InputService : InputMethodService(),
     }
 
     override fun onCreateCandidatesView(): View {
-        Log.i(tag, "onCreateCandidatesView")
+        Log.d("[IME]", "onCreateCandidatesView")
         candidateView = CandidateView(this)
         candidateView.layoutParams = ViewGroup.LayoutParams(
             ViewGroup.LayoutParams.MATCH_PARENT,
@@ -225,13 +209,13 @@ class InputService : InputMethodService(),
 
     override fun onStartInputView(info: EditorInfo, restarting: Boolean) {
         super.onStartInputView(info, restarting)
-        Log.i(tag, "onStartInputView")
+        Log.d("[IME]", "onStartInputView")
 
         keyboardView.setKeyboard(keyboard)
         keyboardView.closing()
         setCandidatesViewShown(true)
 
-        if (imeType == IME.ENGLISH) {
+        if (imeType == IMEType.ENGLISH) {
             if (info.initialCapsMode == TextUtils.CAP_MODE_CHARACTERS) {
                 (keyboard as EnglishKeyboard).showStickyUpper()
             } else if (info.initialCapsMode != 0) {
@@ -250,7 +234,7 @@ class InputService : InputMethodService(),
      */
     override fun onFinishInput() {
         super.onFinishInput()
-        Log.i(tag, "onFinishInput")
+        Log.d("[IME]", "onFinishInput")
 
         // Clear current composing text and candidates.
         mComposing.clear()
@@ -309,11 +293,6 @@ class InputService : InputMethodService(),
         candidateView.setSuggestions(sug)
     }
 
-    override fun onCurrentInputMethodSubtypeChanged(newSubtype: InputMethodSubtype?) {
-        super.onCurrentInputMethodSubtypeChanged(newSubtype)
-        Log.i(tag, "onCurrentInputMethodSubtypeChanged")
-    }
-
     override fun onKeyDown(keyCode: Int, event: KeyEvent?): Boolean {
         if (keyCode == KeyEvent.KEYCODE_DEL) {
             // Special handling of the delete key: if we currently are
@@ -334,7 +313,7 @@ class InputService : InputMethodService(),
     override fun onKeyboardChar(c: Char, fromPopup: Boolean) {
         val ic = currentInputConnection ?: return
 
-        if (imeType == IME.ENGLISH) {
+        if (imeType == IMEType.ENGLISH) {
             if (!Character.isLetter(c)) {
                 mSentenceBreak = c == '.' || c == '?' || c == '!'
                 mComposing.append(c)
@@ -356,7 +335,7 @@ class InputService : InputMethodService(),
                 updateCandidates()
                 mInputState = InputState.TYPING
             }
-        } else if (imeType == IME.PINYIN) {
+        } else if (imeType == IMEType.PINYIN) {
             pinyin.processText(c)
             updateCandidates()
         }
@@ -365,7 +344,7 @@ class InputService : InputMethodService(),
     override fun onKeyboardKeyCode(keyCode: Int) {
         val ic = currentInputConnection ?: return
 
-        if (imeType == IME.ENGLISH) {
+        if (imeType == IMEType.ENGLISH) {
             if (keyCode == KeyEvent.KEYCODE_DEL) {
                 if (mComposing.isNotEmpty()) {
                     mComposing.delete(mComposing.length-1, mComposing.length)
@@ -390,7 +369,7 @@ class InputService : InputMethodService(),
 
                 mInputState = InputState.FINISHED
             }
-        } else if (imeType == IME.PINYIN) {
+        } else if (imeType == IMEType.PINYIN) {
             if (!pinyin.processKeycode(keyCode)) {
                 sendDownUpKeyEvents(keyCode)
             }
@@ -399,8 +378,8 @@ class InputService : InputMethodService(),
     }
 
     override fun onLangSwitch() {
-        if (imeType == IME.ENGLISH) {
-            imeType = IME.PINYIN
+        if (imeType == IMEType.ENGLISH) {
+            imeType = IMEType.PINYIN
             keyboard = PinyinKeyboard(getDisplayContext())
             keyboard.buildLayout()
             keyboardView.setKeyboard(keyboard)
@@ -408,8 +387,8 @@ class InputService : InputMethodService(),
             candidateView.resetDisplayStyle(true, true)
             mComposing.clear()
             updateCandidates()
-        } else if (imeType == IME.PINYIN) {
-            imeType = IME.ENGLISH
+        } else if (imeType == IMEType.PINYIN) {
+            imeType = IMEType.ENGLISH
             keyboard = EnglishKeyboard(getDisplayContext())
             keyboard.buildLayout()
             keyboardView.setKeyboard(keyboard)
@@ -429,11 +408,11 @@ class InputService : InputMethodService(),
             currentInputConnection.commitCompletion(mCompletions[index])
             return
         }
-        if (imeType == IME.ENGLISH) {
+        if (imeType == IMEType.ENGLISH) {
             currentInputConnection.commitText(text, 1)
             mInputState = InputState.SUGGESTED
             mComposing.clear()
-        } else if (imeType == IME.PINYIN) {
+        } else if (imeType == IMEType.PINYIN) {
             pinyin.onChoiceTouched(index)
         }
 
@@ -442,14 +421,14 @@ class InputService : InputMethodService(),
     }
 
     override fun showMoreCandidates() {
-        if (imeType == IME.ENGLISH) {
+        if (imeType == IMEType.ENGLISH) {
             return
         }
         keyboardView.showMoreCandidatesPopup()
     }
 
     override fun dismissMoreCandidates() {
-        if (imeType == IME.ENGLISH) {
+        if (imeType == IMEType.ENGLISH) {
             return
         }
         keyboardView.dismissCandidatesPopup()
@@ -473,7 +452,7 @@ class InputService : InputMethodService(),
     }
 
     private fun updateComposingRegion(selStart: Int, selEnd: Int) {
-        if (imeType == IME.ENGLISH) {
+        if (imeType == IMEType.ENGLISH) {
             mComposing.clear()
             if (currentInputConnection == null) {
                 return
@@ -530,7 +509,7 @@ class InputService : InputMethodService(),
      * candidates.
      */
     private fun updateCandidates() {
-        if (imeType == IME.ENGLISH) {
+        if (imeType == IMEType.ENGLISH) {
             if (mComposing.isBlank()) {
                 candidateView.setSuggestions(listOf())
             }
@@ -548,7 +527,7 @@ class InputService : InputMethodService(),
             }
             words.add(0, searchWord)
             candidateView.setSuggestions(words)
-        } else if (imeType == IME.PINYIN) {
+        } else if (imeType == IMEType.PINYIN) {
             candidateView.setSuggestions(pinyin.candidates, pinyin.displayComposing ?: "")
         }
     }
