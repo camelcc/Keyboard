@@ -26,6 +26,8 @@ import android.util.Log;
 import android.view.KeyEvent;
 import android.view.inputmethod.CompletionInfo;
 
+import com.camelcc.keyboard.IMEListener;
+
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Vector;
@@ -35,12 +37,6 @@ import java.util.Vector;
  */
 public class PinyinIME {
     public static boolean sPrediction = true;
-
-    public static interface PinyinIMEListener {
-        void commitText(String text);
-        void commitCompletion(CompletionInfo ci);
-        CharSequence getTextBeforeCursor(int length);
-    }
 
     private static final String TAG = "PinyinIME";
 
@@ -62,7 +58,7 @@ public class PinyinIME {
      */
     private DecodingInfo mDecInfo = new DecodingInfo();
 
-    private PinyinIMEListener mListener = null;
+    private IMEListener mListener = null;
 
     private Context mContext;
 
@@ -92,7 +88,7 @@ public class PinyinIME {
         mDecInfo.reset();
     }
 
-    public void setListener(PinyinIMEListener listener) {
+    public void setListener(IMEListener listener) {
         mListener = listener;
     }
 
@@ -112,7 +108,7 @@ public class PinyinIME {
         }
         if (mListener != null) {
             mListener.commitText((mImeState == ImeState.STATE_INPUT || mImeState == ImeState.STATE_COMPOSING) ?
-                mDecInfo.getCurrentFullSent(0) + keyChar : String.valueOf(keyChar));
+                mDecInfo.getCurrentFullSent(0) + keyChar : String.valueOf(keyChar), true);
         }
         mDecInfo.reset();
         mImeState = ImeState.STATE_IDLE;
@@ -128,7 +124,7 @@ public class PinyinIME {
         } else if (keyCode == KeyEvent.KEYCODE_ENTER) {
             if (mImeState == ImeState.STATE_INPUT || mImeState == ImeState.STATE_COMPOSING) {
                 if (mListener != null) {
-                    mListener.commitText(mDecInfo.getComposingStr());
+                    mListener.commitText(mDecInfo.getComposingStr(), true);
                 }
                 mDecInfo.reset();
                 mImeState = ImeState.STATE_IDLE;
@@ -142,7 +138,7 @@ public class PinyinIME {
                 chooseAndUpdate(0);
             } else {
                 if (mListener != null) {
-                    mListener.commitText(" ");
+                    mListener.commitText(" ", true);
                 }
                 mDecInfo.reset();
                 mImeState = ImeState.STATE_IDLE;
@@ -170,7 +166,7 @@ public class PinyinIME {
             // choiceId >= 0 means user finishes a choice selection.
             if (candId >= 0 && mDecInfo.canDoPrediction()) {
                 if (mListener != null) {
-                    mListener.commitText(resultStr);
+                    mListener.commitText(resultStr, true);
                 }
                 mImeState = ImeState.STATE_PREDICT;
                 // Try to get the prediction list.

@@ -7,14 +7,13 @@ import android.text.InputType
 import android.text.TextUtils
 import android.util.Log
 import android.util.TypedValue
-import android.view.KeyEvent
 import android.view.View
 import android.view.ViewGroup
 import android.view.WindowManager
 import android.view.inputmethod.CompletionInfo
 import android.view.inputmethod.EditorInfo
 import com.android.inputmethod.pinyin.PinyinIME
-import com.camelcc.keyboard.en.BinaryDictionary
+import com.camelcc.keyboard.en.EnIME
 
 interface KeyboardListener {
     fun onLangSwitch()
@@ -29,57 +28,42 @@ interface KeyboardListener {
     fun dismissMoreCandidates()
 }
 
+interface IMEListener {
+    fun commitText(text: String, suppressUpdates: Boolean = false)
+    fun commitCompletion(ci: CompletionInfo)
+    fun composingText(text: String, suppressUpdates: Boolean = false)
+    fun getTextBeforeCursor(length: Int): CharSequence?
+    fun showCapsKeyboard()
+}
+
 val Int.dp2px: Int get() = (TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_DIP, this.toFloat(), Resources.getSystem().displayMetrics)).toInt()
 
-class InputService : InputMethodService(), KeyboardListener, PinyinIME.PinyinIMEListener {
-    enum class IMEType {
+class InputService : InputMethodService(), KeyboardListener, IMEListener {
+    enum class IMEMode {
         ENGLISH,
         PINYIN
     }
 
-    private var imeType = IMEType.ENGLISH
+    private var imeMode = IMEMode.ENGLISH
+
     private lateinit var keyboard: Keyboard
     private lateinit var keyboardView: KeyboardView
     private lateinit var candidateView: CandidateView
 
-    private var mCompletionOn = false
-    private var mPredictionOn = false
-    private var mDeferSelectionUpdate = false
+    private var completionOn = false
+    private var predictionOn = false
+    private var deferSelectionUpdate = false
+    private var completions: Array<CompletionInfo> = arrayOf()
 
-    // english only
-    private lateinit var enIME: BinaryDictionary
-    private val mComposing = StringBuilder()
-    private var mCompletions: Array<CompletionInfo> = arrayOf()
-
-    enum class InputState {
-        TYPING, FINISHED, SUGGESTED
-    }
-    /*
-     * Simple state machine for input state
-     *   <--------- SPACE + chars ------------------
-     *   |                                         |
-     * TYPING ---- (candidate UI Selection) ---> SUGGESTED
-     *   |                                         |
-     *   |<-------------                           |
-     *   |           chars                    punctuation
-     * punctuation     |                           |
-     *   |----------> FINISH <----------------------
-     */
-    private var mInputState = InputState.FINISHED
-    private var mSentenceBreak = true
-
-    // pinyinonly
+    private lateinit var en: EnIME
     private lateinit var pinyin: PinyinIME
 
     override fun onCreate() {
         super.onCreate()
         Log.d("[IME]", "onCreate")
 
-//        inputManager = getSystemService(Context.INPUT_METHOD_SERVICE) as InputMethodManager
-//        suggestion = TypeSuggestion(serviceIOScope)
-        // TODO: try catch
-//        suggestion.initializeDictionary(this)
-        enIME = BinaryDictionary(this)
+        en = EnIME(this)
+        en.listener = this
 
         pinyin = PinyinIME(this)
         pinyin.setListener(this)
@@ -97,7 +81,7 @@ class InputService : InputMethodService(), KeyboardListener, PinyinIME.PinyinIME
      */
     override fun onInitializeInterface() {
         val displayContext = getDisplayContext()
-        keyboard = if (imeType == IMEType.ENGLISH) EnglishKeyboard(displayContext) else PinyinKeyboard(displayContext)
+        keyboard = if (imeMode == IMEMode.ENGLISH) EnglishKeyboard(displayContext) else PinyinKeyboard(displayContext)
     }
 
     /**
@@ -130,14 +114,15 @@ class InputService : InputMethodService(), KeyboardListener, PinyinIME.PinyinIME
 
         // Reset our state.  We want to do this even if restarting, because
         // the underlying state of the text editor could have changed in any way.
-        mComposing.clear()
+        en.reset()
+        pinyin.reset()
 
-        mPredictionOn = true
-        mCompletionOn = false
+        predictionOn = true
+        completionOn = false
 
         when (attribute.inputType.and(InputType.TYPE_MASK_CLASS)) {
             InputType.TYPE_CLASS_TEXT -> {
-                mPredictionOn = true
+                predictionOn = true
 
                 // We now look for a few special variations of text that will
                 // modify our behavior.
@@ -147,13 +132,13 @@ class InputService : InputMethodService(), KeyboardListener, PinyinIME.PinyinIME
                     variation == InputType.TYPE_TEXT_VARIATION_WEB_PASSWORD) {
                     // Do not display predictions / what the user is typing
                     // when they are entering a password.
-                    mPredictionOn = false
+                    predictionOn = false
                 }
                 if (variation == InputType.TYPE_TEXT_VARIATION_EMAIL_ADDRESS ||
                     variation == InputType.TYPE_TEXT_VARIATION_WEB_EMAIL_ADDRESS) {
                     // Our predictions are not useful for e-mail addresses
                     // or URIs.
-                    mPredictionOn = false
+                    predictionOn = false
                 }
 
                 if (attribute.inputType and InputType.TYPE_TEXT_FLAG_AUTO_COMPLETE != 0) {
@@ -162,8 +147,8 @@ class InputService : InputMethodService(), KeyboardListener, PinyinIME.PinyinIME
                     // to supply their own.  We only show the editor's
                     // candidates when in fullscreen mode, otherwise relying
                     // own it displaying its own UI.
-                    mPredictionOn = false
-                    mCompletionOn = isFullscreenMode
+                    predictionOn = false
+                    completionOn = isFullscreenMode
                 }
             }
         }
@@ -174,7 +159,7 @@ class InputService : InputMethodService(), KeyboardListener, PinyinIME.PinyinIME
 //        mCurKeyboard.setImeOptions(getResources(), attribute.imeOptions)
         keyboard.buildLayout()
 
-        if (mPredictionOn && !mCompletionOn) {
+        if (predictionOn && !completionOn) {
             updateComposingRegion(attribute.initialSelStart, attribute.initialSelEnd)
         }
     }
@@ -186,10 +171,8 @@ class InputService : InputMethodService(), KeyboardListener, PinyinIME.PinyinIME
             ViewGroup.LayoutParams.MATCH_PARENT,
             ViewGroup.LayoutParams.WRAP_CONTENT)
         inputView.setKeyboard(keyboard)
-//        inputView.setKeyboardListener(this)
-//        inputView.setSuggestionListener(this)
+        //TODO: better way to hook datasource
         inputView.getCandidatesAdapter().pinyinIME = pinyin
-//        inputView.getCandidatesAdapter().listener = this
         inputView.getCandidatesAdapter().notifyDataSetChanged()
 
         inputView.listener = this
@@ -215,7 +198,7 @@ class InputService : InputMethodService(), KeyboardListener, PinyinIME.PinyinIME
         keyboardView.closing()
         setCandidatesViewShown(true)
 
-        if (imeType == IMEType.ENGLISH) {
+        if (imeMode == IMEMode.ENGLISH) {
             if (info.initialCapsMode == TextUtils.CAP_MODE_CHARACTERS) {
                 (keyboard as EnglishKeyboard).showStickyUpper()
             } else if (info.initialCapsMode != 0) {
@@ -237,14 +220,14 @@ class InputService : InputMethodService(), KeyboardListener, PinyinIME.PinyinIME
         Log.d("[IME]", "onFinishInput")
 
         // Clear current composing text and candidates.
-        mComposing.clear()
+        en.reset()
+        pinyin.reset()
 
         // We only hide the candidates window when finishing input on
         // a particular editor, to avoid popping the underlying application
         // up and down if the user is entering text into the bottom of
         // its window.
         setCandidatesViewShown(false)
-//        keyboardView.closing()
     }
 
     /**
@@ -257,18 +240,23 @@ class InputService : InputMethodService(), KeyboardListener, PinyinIME.PinyinIME
         candidatesStart: Int,
         candidatesEnd: Int) {
         super.onUpdateSelection(oldSelStart, oldSelEnd, newSelStart, newSelEnd, candidatesStart, candidatesEnd)
+
+        if (!predictionOn) {
+            return
+        }
+        if (completionOn) {
+            return
+        }
         // If the current selection in the text view changes, we should
         // clear whatever candidate text we have.
         if (newSelStart != candidatesEnd || newSelEnd != candidatesEnd) {
-            if (mDeferSelectionUpdate) {
-                mDeferSelectionUpdate = false
+            if (deferSelectionUpdate) {
+                deferSelectionUpdate = false
                 return
             }
 
-            if (mPredictionOn && !mCompletionOn) {
-                updateComposingRegion(newSelStart, newSelEnd)
-                updateCandidates()
-            }
+            updateComposingRegion(newSelStart, newSelEnd)
+            updateCandidates()
         }
     }
 
@@ -279,11 +267,11 @@ class InputService : InputMethodService(), KeyboardListener, PinyinIME.PinyinIME
      * in that situation.
      */
     override fun onDisplayCompletions(completions: Array<CompletionInfo>?) {
-        if (!mCompletionOn) {
+        if (!completionOn) {
             return
         }
 
-        mCompletions = completions ?: arrayOf()
+        this.completions = completions ?: arrayOf()
         if (completions == null || completions.isEmpty()) {
             candidateView.setSuggestions(listOf())
             return
@@ -293,83 +281,25 @@ class InputService : InputMethodService(), KeyboardListener, PinyinIME.PinyinIME
         candidateView.setSuggestions(sug)
     }
 
-    override fun onKeyDown(keyCode: Int, event: KeyEvent?): Boolean {
-        if (keyCode == KeyEvent.KEYCODE_DEL) {
-            // Special handling of the delete key: if we currently are
-            // composing text for the user, we want to modify that instead
-            // of let the application to the delete itself.
-            if (mComposing.isNotEmpty()) {
-                onKeyboardKeyCode(KeyEvent.KEYCODE_DEL)
-                return true
-            }
-        } else if (keyCode == KeyEvent.KEYCODE_ENTER) {
-            // Let the underlying text editor always handle these.
-            return false
-        }
-        return super.onKeyDown(keyCode, event)
-    }
-
     // no space, must be letter or punctuation or symbols
     override fun onKeyboardChar(c: Char, fromPopup: Boolean) {
-        val ic = currentInputConnection ?: return
-
-        if (imeType == IMEType.ENGLISH) {
-            if (!Character.isLetter(c)) {
-                mSentenceBreak = c == '.' || c == '?' || c == '!'
-                mComposing.append(c)
-                ic.commitText(mComposing, 1)
-                mComposing.clear()
-                mDeferSelectionUpdate = true
-                updateCandidates()
-                mInputState = InputState.FINISHED
-            } else {
-                mSentenceBreak = false
-                ic.beginBatchEdit()
-                if (mInputState == InputState.SUGGESTED) {
-                    ic.commitText(" ", 1)
-                }
-                mComposing.append(c)
-                ic.setComposingText(mComposing, 1)
-                ic.endBatchEdit()
-                mDeferSelectionUpdate = true
-                updateCandidates()
-                mInputState = InputState.TYPING
-            }
-        } else if (imeType == IMEType.PINYIN) {
+        if (imeMode == IMEMode.ENGLISH) {
+            en.processText(c)
+        } else if (imeMode == IMEMode.PINYIN) {
             pinyin.processText(c)
-            updateCandidates()
         }
+        updateCandidates()
     }
 
     override fun onKeyboardKeyCode(keyCode: Int) {
-        val ic = currentInputConnection ?: return
-
-        if (imeType == IMEType.ENGLISH) {
-            if (keyCode == KeyEvent.KEYCODE_DEL) {
-                if (mComposing.isNotEmpty()) {
-                    mComposing.delete(mComposing.length-1, mComposing.length)
-                    ic.setComposingText(mComposing, 1)
-                    mDeferSelectionUpdate = true
-                    updateCandidates()
-                } else {
-                    mDeferSelectionUpdate = false
-                    sendDownUpKeyEvents(keyCode)
-                }
-            } else if (keyCode == KeyEvent.KEYCODE_ENTER || keyCode == KeyEvent.KEYCODE_SPACE) {
-                if (keyCode == KeyEvent.KEYCODE_SPACE) {
-                    if (mSentenceBreak) {
-                        (keyboard as EnglishKeyboard).showUpper()
-                    }
-                }
-
-                ic.commitText(mComposing, 1)
-                mDeferSelectionUpdate = true
-                mComposing.clear()
+        if (imeMode == IMEMode.ENGLISH) {
+            if (!en.processKeycode(keyCode)) {
+                deferSelectionUpdate = false
                 sendDownUpKeyEvents(keyCode)
-
-                mInputState = InputState.FINISHED
+            } else {
+                updateCandidates()
             }
-        } else if (imeType == IMEType.PINYIN) {
+        } else if (imeMode == IMEMode.PINYIN) {
             if (!pinyin.processKeycode(keyCode)) {
                 sendDownUpKeyEvents(keyCode)
             }
@@ -378,24 +308,23 @@ class InputService : InputMethodService(), KeyboardListener, PinyinIME.PinyinIME
     }
 
     override fun onLangSwitch() {
-        if (imeType == IMEType.ENGLISH) {
-            imeType = IMEType.PINYIN
+        if (imeMode == IMEMode.ENGLISH) {
+            imeMode = IMEMode.PINYIN
             keyboard = PinyinKeyboard(getDisplayContext())
             keyboard.buildLayout()
             keyboardView.setKeyboard(keyboard)
-            pinyin.reset()
             candidateView.resetDisplayStyle(true, true)
-            mComposing.clear()
-            updateCandidates()
-        } else if (imeType == IMEType.PINYIN) {
-            imeType = IMEType.ENGLISH
+        } else if (imeMode == IMEMode.PINYIN) {
+            imeMode = IMEMode.ENGLISH
             keyboard = EnglishKeyboard(getDisplayContext())
             keyboard.buildLayout()
             keyboardView.setKeyboard(keyboard)
             candidateView.resetDisplayStyle(false, false)
-            mComposing.clear()
-            updateCandidates()
         }
+
+        pinyin.reset()
+        en.reset()
+        updateCandidates()
     }
 
     override fun onKeyboardChanged() {
@@ -404,38 +333,37 @@ class InputService : InputMethodService(), KeyboardListener, PinyinIME.PinyinIME
 
     override fun onCandidate(text: String, index: Int) {
         keyboardView.dismissCandidatesPopup()
-        if (mCompletionOn) {
-            currentInputConnection.commitCompletion(mCompletions[index])
+        if (completionOn) {
+            currentInputConnection.commitCompletion(completions[index])
             return
         }
-        if (imeType == IMEType.ENGLISH) {
-            currentInputConnection.commitText(text, 1)
-            mInputState = InputState.SUGGESTED
-            mComposing.clear()
-        } else if (imeType == IMEType.PINYIN) {
+        if (imeMode == IMEMode.ENGLISH) {
+            en.onCandidate(text)
+        } else if (imeMode == IMEMode.PINYIN) {
             pinyin.onChoiceTouched(index)
         }
-
-        mDeferSelectionUpdate = true
         updateCandidates()
     }
 
     override fun showMoreCandidates() {
-        if (imeType == IMEType.ENGLISH) {
+        if (imeMode == IMEMode.ENGLISH) {
             return
         }
         keyboardView.showMoreCandidatesPopup()
     }
 
     override fun dismissMoreCandidates() {
-        if (imeType == IMEType.ENGLISH) {
+        if (imeMode == IMEMode.ENGLISH) {
             return
         }
         keyboardView.dismissCandidatesPopup()
     }
 
-    override fun commitText(text: String) {
+    override fun commitText(text: String, suppressUpdates: Boolean) {
         val ic = currentInputConnection ?: return
+        if (suppressUpdates) {
+            deferSelectionUpdate = true
+        }
         ic.commitText(text, 1)
         updateCandidates()
     }
@@ -446,60 +374,36 @@ class InputService : InputMethodService(), KeyboardListener, PinyinIME.PinyinIME
         updateCandidates()
     }
 
+    override fun composingText(text: String, suppressUpdates: Boolean) {
+        val ic = currentInputConnection ?: return
+        if (suppressUpdates) {
+            deferSelectionUpdate = true
+        }
+        ic.setComposingText(text, 1)
+    }
+
     override fun getTextBeforeCursor(length: Int): CharSequence {
         val ic = currentInputConnection ?: return ""
         return ic.getTextBeforeCursor(length, 0)
     }
 
+    override fun showCapsKeyboard() {
+        if (imeMode == IMEMode.ENGLISH) {
+            (keyboard as? EnglishKeyboard)?.showUpper()
+        }
+    }
+
     private fun updateComposingRegion(selStart: Int, selEnd: Int) {
-        if (imeType == IMEType.ENGLISH) {
-            mComposing.clear()
-            if (currentInputConnection == null) {
-                return
-            }
-            val before = currentInputConnection.getTextBeforeCursor(48, 0)
-            val current = currentInputConnection.getSelectedText(0)
-            val after = currentInputConnection.getTextAfterCursor(48, 0)
-            if (!current.isNullOrEmpty()) {
-                mComposing.append(current)
-            }
-            if (!mPredictionOn || mCompletionOn) {
-                return
-            }
-            mInputState =
-                if (!before.isNullOrBlank() && before[before.length - 1].isLetter() && (current.isNullOrEmpty() || current[0].isLetter())) {
-                    InputState.TYPING
-                } else {
-                    InputState.FINISHED
-                }
-            var start = selStart
-            if (!before.isNullOrBlank()) {
-                for (i in before.indices.reversed()) {
-                    if (!Character.isSpaceChar(before[i])) {
-                        mComposing.insert(0, before[i])
-                        start--
-                        mSentenceBreak =
-                            i > 0 && (before[i - 1] == '.' || before[i - 1] == '?' || before[i - 1] == '!')
-                    } else {
-                        break
-                    }
-                }
-            }
-            var end = selEnd
-            if (!after.isNullOrBlank()) {
-                for (i in after.indices) {
-                    if (!Character.isSpaceChar(after[i])) {
-                        mComposing.append(after[i])
-                        end++
-                    } else {
-                        break
-                    }
-                }
-            }
-            if (start == selStart && end == selEnd) {
-                return
-            }
-            currentInputConnection.setComposingRegion(start, end)
+        if (!predictionOn || completionOn || currentInputConnection == null) {
+            return
+        }
+
+        if (imeMode == IMEMode.ENGLISH) {
+            val sel = en.reselectComposing(selStart, selEnd,
+                currentInputConnection.getTextBeforeCursor(48, 0),
+                currentInputConnection.getSelectedText(0),
+                currentInputConnection.getTextAfterCursor(48, 0))
+            currentInputConnection.setComposingRegion(sel[0], sel[1])
         }
     }
 
@@ -509,25 +413,13 @@ class InputService : InputMethodService(), KeyboardListener, PinyinIME.PinyinIME
      * candidates.
      */
     private fun updateCandidates() {
-        if (imeType == IMEType.ENGLISH) {
-            if (mComposing.isBlank()) {
-                candidateView.setSuggestions(listOf())
-            }
-            if (!mPredictionOn || mCompletionOn) {
+        if (imeMode == IMEMode.ENGLISH) {
+            if (!predictionOn || completionOn) {
                 return
             }
-            val searchWord = mComposing.toString()
-            val suggestions = enIME.fuseQuery(searchWord)
-            val words = mutableListOf<String>()
-            for (s in suggestions?.suggestions ?: listOf()) {
-                if (s.mWord == searchWord) {
-                    continue
-                }
-                words.add(s.mWord)
-            }
-            words.add(0, searchWord)
-            candidateView.setSuggestions(words)
-        } else if (imeType == IMEType.PINYIN) {
+            en.updateCandidates()
+            candidateView.setSuggestions(en.candidates)
+        } else if (imeMode == IMEMode.PINYIN) {
             candidateView.setSuggestions(pinyin.candidates, pinyin.displayComposing ?: "")
         }
     }
