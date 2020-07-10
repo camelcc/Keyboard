@@ -351,6 +351,7 @@ public class BinaryDictionary {
 
     private byte[] data;
 
+    @WorkerThread
     public BinaryDictionary(Context context) throws IOException, DictionaryInvalidFormatException {
         AssetFileDescriptor fd = context.getAssets().openFd("wordlist.dict");
         long len = fd.getLength();

@@ -65,7 +65,7 @@ class CandidateView(context: Context) : View(context) {
     }
 
     fun setSuggestions(suggestions: List<String>, composing: String = "") {
-        this.candidates = suggestions
+        candidates = suggestions
         expanded = false
 
         composingView.composing = composing
@@ -187,6 +187,10 @@ class CandidateView(context: Context) : View(context) {
     override fun onDraw(canvas: Canvas) {
         Log.d("[CandidateView]", "CandidateView onDraw")
         super.onDraw(canvas)
+        if (candidatesWidth.size > candidates.size) { // should not happen
+            requestLayout()
+            return
+        }
 
         paint.style = Paint.Style.FILL
         paint.color = KeyboardTheme.background

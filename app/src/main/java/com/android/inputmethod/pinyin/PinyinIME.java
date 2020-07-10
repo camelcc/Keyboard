@@ -108,7 +108,7 @@ public class PinyinIME {
         }
         if (mListener != null) {
             mListener.commitText((mImeState == ImeState.STATE_INPUT || mImeState == ImeState.STATE_COMPOSING) ?
-                mDecInfo.getCurrentFullSent(0) + keyChar : String.valueOf(keyChar), true);
+                mDecInfo.getCurrentFullSent(0) + keyChar : String.valueOf(keyChar));
         }
         mDecInfo.reset();
         mImeState = ImeState.STATE_IDLE;
@@ -124,7 +124,7 @@ public class PinyinIME {
         } else if (keyCode == KeyEvent.KEYCODE_ENTER) {
             if (mImeState == ImeState.STATE_INPUT || mImeState == ImeState.STATE_COMPOSING) {
                 if (mListener != null) {
-                    mListener.commitText(mDecInfo.getComposingStr(), true);
+                    mListener.commitText(mDecInfo.getComposingStr());
                 }
                 mDecInfo.reset();
                 mImeState = ImeState.STATE_IDLE;
@@ -138,7 +138,7 @@ public class PinyinIME {
                 chooseAndUpdate(0);
             } else {
                 if (mListener != null) {
-                    mListener.commitText(" ", true);
+                    mListener.commitText(" ");
                 }
                 mDecInfo.reset();
                 mImeState = ImeState.STATE_IDLE;
@@ -166,7 +166,7 @@ public class PinyinIME {
             // choiceId >= 0 means user finishes a choice selection.
             if (candId >= 0 && mDecInfo.canDoPrediction()) {
                 if (mListener != null) {
-                    mListener.commitText(resultStr, true);
+                    mListener.commitText(resultStr);
                 }
                 mImeState = ImeState.STATE_PREDICT;
                 // Try to get the prediction list.

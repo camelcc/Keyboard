@@ -68,6 +68,7 @@ class PinyinDetailsAdapter :
     }
 
     fun loadMoreCandidates() {
+        //TODO: thread switch
         pinyinIME?.loadMoreCandidates()
     }
 
