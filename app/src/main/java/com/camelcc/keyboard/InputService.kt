@@ -7,6 +7,7 @@ import android.text.InputType
 import android.text.TextUtils
 import android.util.Log
 import android.util.TypedValue
+import android.view.KeyEvent
 import android.view.View
 import android.view.ViewGroup
 import android.view.WindowManager
@@ -56,6 +57,7 @@ class InputService : InputMethodService(), KeyboardListener, IMEListener {
     private var completionOn = false
     private var predictionOn = false
     private var completions: Array<CompletionInfo> = arrayOf()
+    private var doneAction = EditorInfo.IME_ACTION_UNSPECIFIED
 
     private lateinit var en: IME
     private lateinit var pinyin: PinyinIME
@@ -170,7 +172,10 @@ class InputService : InputMethodService(), KeyboardListener, IMEListener {
 
         // Update the label on the enter key, depending on what the application
         // says it will do.
-        // TODO:
+        // TODO action icon:
+        if (attribute.imeOptions and EditorInfo.IME_FLAG_NO_ENTER_ACTION == 0) {
+            doneAction = attribute.imeOptions and EditorInfo.IME_MASK_ACTION
+        }
 //        mCurKeyboard.setImeOptions(getResources(), attribute.imeOptions)
         keyboard.buildLayout()
     }
@@ -288,7 +293,11 @@ class InputService : InputMethodService(), KeyboardListener, IMEListener {
                 if (consumed) {
                     updateCandidates()
                 } else {
-                    sendDownUpKeyEvents(keyCode)
+                    if (keyCode == KeyEvent.KEYCODE_ENTER && doneAction != EditorInfo.IME_ACTION_UNSPECIFIED) {
+                        currentInputConnection?.performEditorAction(doneAction)
+                    } else {
+                        sendDownUpKeyEvents(keyCode)
+                    }
                 }
             }
         }
