@@ -30,6 +30,8 @@ interface KeyboardListener {
     fun onCandidate(text: String, index: Int)
     fun showMoreCandidates()
     fun dismissMoreCandidates()
+
+    fun loadMoreCandidates()
 }
 
 interface IMEListener {
@@ -172,10 +174,10 @@ class InputService : InputMethodService(), KeyboardListener, IMEListener {
 
         // Update the label on the enter key, depending on what the application
         // says it will do.
-        // TODO action icon:
         if (attribute.imeOptions and EditorInfo.IME_FLAG_NO_ENTER_ACTION == 0) {
             doneAction = attribute.imeOptions and EditorInfo.IME_MASK_ACTION
         }
+        // TODO action icon:
 //        mCurKeyboard.setImeOptions(getResources(), attribute.imeOptions)
         keyboard.buildLayout()
     }
@@ -187,10 +189,7 @@ class InputService : InputMethodService(), KeyboardListener, IMEListener {
             ViewGroup.LayoutParams.MATCH_PARENT,
             ViewGroup.LayoutParams.WRAP_CONTENT)
         inputView.setKeyboard(keyboard)
-        //TODO: better way to hook datasource
-        inputView.getCandidatesAdapter().pinyinIME = pinyin
-        inputView.getCandidatesAdapter().notifyDataSetChanged()
-
+        inputView.setCandidates(pinyin.candidates)
         inputView.listener = this
         keyboardView = inputView
         return inputView
@@ -362,6 +361,15 @@ class InputService : InputMethodService(), KeyboardListener, IMEListener {
             return
         }
         keyboardView.dismissCandidatesPopup()
+    }
+
+    override fun loadMoreCandidates() {
+        imeScope.launch {
+            pinyin.loadMoreCandidates()
+            imeScope.launch(uiContext) {
+                keyboardView.updateCandidates()
+            }
+        }
     }
 
     override fun commitText(text: String) {

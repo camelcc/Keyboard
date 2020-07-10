@@ -9,7 +9,6 @@ import android.view.ViewGroup
 import android.widget.TextView
 import androidx.appcompat.widget.AppCompatTextView
 import androidx.recyclerview.widget.RecyclerView
-import com.android.inputmethod.pinyin.PinyinIME
 import com.camelcc.keyboard.KeyboardListener
 import com.camelcc.keyboard.KeyboardTheme
 import com.camelcc.keyboard.dp2px
@@ -17,7 +16,8 @@ import com.camelcc.keyboard.dp2px
 class PinyinDetailsAdapter :
     RecyclerView.Adapter<PinyinDetailsAdapter.ViewHolder>() {
     var listener: KeyboardListener? = null
-    var pinyinIME: PinyinIME? = null
+    // maybe changed by other threads, use with null protected
+    var candidates = listOf<String>()
 
     private val paint = Paint() // only for measure text width purpose
 
@@ -54,25 +54,20 @@ class PinyinDetailsAdapter :
         val vh = ViewHolder(textView)
         vh.itemView.setOnClickListener {
             val pos = vh.adapterPosition
-            listener?.onCandidate(pinyinIME?.candidates?.get(pos) ?: "", pos)
+            listener?.onCandidate(candidates.getOrNull(pos) ?: "", pos)
         }
         return vh
     }
 
     override fun getItemCount(): Int {
-        return pinyinIME?.candidates?.size ?: 0
+        return candidates.size
     }
 
     override fun onBindViewHolder(holder: ViewHolder, position: Int) {
-        holder.textView.text = pinyinIME?.candidates?.get(position) ?: ""
-    }
-
-    fun loadMoreCandidates() {
-        //TODO: thread switch
-        pinyinIME?.loadMoreCandidates()
+        holder.textView.text = candidates.getOrNull(position) ?: ""
     }
 
     fun getCalculatedWidth(position: Int): Int {
-        return (2*KeyboardTheme.candidateTextPadding + paint.measureText(pinyinIME?.candidates?.get(position) ?: "")).toInt()
+        return (2*KeyboardTheme.candidateTextPadding + paint.measureText(candidates.getOrNull(position) ?: "")).toInt()
     }
 }

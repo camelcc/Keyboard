@@ -105,7 +105,7 @@ class KeyboardView: View {
         candidateDetailPopupWindow.contentView = candidateDetailView
         gridLayoutManager.spanSizeLookup = object : GridLayoutManager.SpanSizeLookup() {
             override fun getSpanSize(position: Int): Int {
-                return calculateSpan(candidateDetailViewAdapter.getCalculatedWidth(position))
+                return calculateSpan(position)
             }
         }
         candidateDetailView.addOnScrollListener(object: RecyclerView.OnScrollListener() {
@@ -115,11 +115,7 @@ class KeyboardView: View {
                     val total = gridLayoutManager.itemCount
                     val first = gridLayoutManager.findFirstVisibleItemPosition()
                     if (first + visible >= total - 10) { // some buffer
-                        candidateDetailView.post {
-                            // TODO: do this in IO thread
-                            candidateDetailViewAdapter.loadMoreCandidates()
-                            candidateDetailViewAdapter.notifyDataSetChanged()
-                        }
+                        listener?.loadMoreCandidates()
                     }
                 }
             }
@@ -145,6 +141,7 @@ class KeyboardView: View {
                 dismissPopupKeyboard()
             }
 
+            override fun loadMoreCandidates() {}
             override fun onLangSwitch() {}
             override fun onKeyboardChanged() {}
             override fun onKeyboardKeyCode(keyCode: Int) {}
@@ -157,17 +154,24 @@ class KeyboardView: View {
         messageHandler = Handler { msg -> return@Handler handleMessage(msg) }
     }
 
-    private fun calculateSpan(textWidth: Int): Int {
+    fun setCandidates(candidates: List<String>) {
+        candidateDetailViewAdapter.candidates = candidates
+    }
+
+    fun updateCandidates() {
+        candidateDetailViewAdapter.notifyDataSetChanged()
+    }
+
+    private fun calculateSpan(position: Int): Int {
+        val textWidth = candidateDetailViewAdapter.getCalculatedWidth(position)
+        if (textWidth == 0) {
+            return 16
+        }
         return if (width <= displayWidth) { // portrait
             (ceil(textWidth*1.0/(width/8)).toInt()*16).coerceAtMost(128)
         } else {
             (ceil(textWidth*1.0/(width/16)).toInt()*8).coerceAtMost(128)
         }
-    }
-
-    //TODO: refactor this api
-    fun getCandidatesAdapter(): PinyinDetailsAdapter {
-        return candidateDetailViewAdapter
     }
 
     fun setKeyboard(kb: Keyboard) {

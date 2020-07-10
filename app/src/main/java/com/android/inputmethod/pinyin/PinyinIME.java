@@ -99,11 +99,13 @@ public class PinyinIME {
                 mImeState = ImeState.STATE_INPUT;
             }
             chooseAndUpdate(-1);
+            mDecInfo.preparePage(0);
             return;
         }
         if (mImeState == ImeState.STATE_INPUT && keyChar == '\'' && !mDecInfo.charBeforeCursorIsSeparator()) {
             mDecInfo.addSplChar((char) keyChar, false);
             chooseAndUpdate(-1);
+            mDecInfo.preparePage(0);
             return;
         }
         if (mListener != null) {
@@ -119,6 +121,7 @@ public class PinyinIME {
             if (mImeState == ImeState.STATE_INPUT || mImeState == ImeState.STATE_COMPOSING) {
                 mDecInfo.prepareDeleteBeforeCursor();
                 chooseAndUpdate(-1);
+                mDecInfo.preparePage(0);
                 return true;
             }
         } else if (keyCode == KeyEvent.KEYCODE_ENTER) {
@@ -229,10 +232,10 @@ public class PinyinIME {
             mDecInfo.reset();
             mImeState = ImeState.STATE_IDLE;
         }
+        mDecInfo.preparePage(0);
     }
 
     public List<String> getCandidates() {
-        mDecInfo.preparePage(0);
         return mDecInfo.mCandidatesList;
     }
 
