@@ -34,6 +34,7 @@ class IME(private val context: Context) {
     fun reset() {
         state = State.FINISHED
         composing.clear()
+        candidates.clear()
         isSentenceBreak = true
     }
 
