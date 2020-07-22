@@ -209,21 +209,27 @@ class InputService : InputMethodService(), KeyboardListener, IMEListener {
         super.onStartInputView(info, restarting)
         Log.d("[IME]", "onStartInputView")
 
+        val inputType = info.inputType and InputType.TYPE_MASK_CLASS
+
         keyboardView.setKeyboard(keyboard)
         keyboardView.closing()
         setCandidatesViewShown(true)
 
         if (imeMode == IMEMode.ENGLISH) {
-            if (info.initialCapsMode == TextUtils.CAP_MODE_CHARACTERS) {
-                (keyboard as EnglishKeyboard).showStickyUpper()
-            } else if (info.initialCapsMode != 0) {
-                (keyboard as EnglishKeyboard).showUpper()
+            if (inputType == InputType.TYPE_CLASS_TEXT) {
+                if (info.initialCapsMode == TextUtils.CAP_MODE_CHARACTERS) {
+                    (keyboard as EnglishKeyboard).showStickyUpper()
+                } else if (info.initialCapsMode != 0) {
+                    (keyboard as EnglishKeyboard).showUpper()
+                }
             }
             candidateView.resetDisplayStyle(false, false)
         } else {
             candidateView.resetDisplayStyle(true, true)
         }
-
+        if (inputType == InputType.TYPE_CLASS_NUMBER || inputType == InputType.TYPE_CLASS_PHONE) {
+            keyboard.showNumber()
+        }
         if (predictionOn && !completionOn) {
             updateCandidates()
         }

@@ -48,6 +48,11 @@ abstract class Keyboard(context: Context) {
     abstract fun onDoubleClick(key: Key): Boolean
     abstract fun onClick(key: Key)
 
+    fun showNumber() {
+        mode = PUNCTUATION
+        buildLayout()
+    }
+
     fun resize(w: Int, h: Int) {
         layout.layout(w, h)
         width = layout.width
