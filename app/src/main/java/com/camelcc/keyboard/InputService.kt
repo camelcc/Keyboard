@@ -277,6 +277,13 @@ class InputService : InputMethodService(), KeyboardListener, IMEListener {
         candidateView.setSuggestions(sug)
     }
 
+    override fun onComputeInsets(outInsets: Insets?) {
+        super.onComputeInsets(outInsets)
+        if (!isFullscreenMode) {
+            outInsets?.contentTopInsets = outInsets?.visibleTopInsets
+        }
+    }
+
     // no space, must be letter or punctuation or symbols
     override fun onKeyboardChar(c: Char, fromPopup: Boolean) {
         imeScope.launch {
